@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Environment & secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Take-home resources (contain the LLM API key in README.pdf)
+blackboard-mobile-engineer-take-home/
