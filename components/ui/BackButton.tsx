@@ -27,9 +27,9 @@ export const BackButton = memo(function BackButton({ onPress }: BackButtonProps)
     >
       <Svg width={20} height={20} viewBox="0 0 20 20">
         <Path
-          d="M12.5 5 L7.5 10 L12.5 15"
+          d="M12.5 15a25.5 25.5 0 0 1-4.848-4.574.67.67 0 0 1 0-.85A25.5 25.5 0 0 1 12.5 5"
           stroke="#000000"
-          strokeWidth={1.67}
+          strokeWidth={1.667}
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"

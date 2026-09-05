@@ -33,6 +33,7 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
 - NativeWind v4 (Tailwind) for utilities; exact Figma px values via StyleSheet + tokens
 - Reanimated 4 for animations, Gesture Handler for the budget slider, Zustand for flow state
 - Run: `bunx expo start` (Expo Go on a physical iPhone 16 Pro is the reference target)
+- Simulator: use the "iPhone 16 Pro" simulator (iOS 26.3) for local previews/screenshots
 
 ## Architecture rules (do not break these)
 
