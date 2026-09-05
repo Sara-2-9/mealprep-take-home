@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
@@ -12,6 +12,7 @@ interface BackButtonProps {
  * Figma component "Icon" — 28x28 surface circle, chevron-left stroke 1.67.
  */
 export const BackButton = memo(function BackButton({ onPress }: BackButtonProps) {
+  const [pressed, setPressed] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
@@ -20,7 +21,9 @@ export const BackButton = memo(function BackButton({ onPress }: BackButtonProps)
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPress();
       }}
-      style={({ pressed }) => [styles.circle, pressed && { opacity: 0.7 }]}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={[styles.circle, pressed && { opacity: 0.7 }]}
     >
       <Svg width={20} height={20} viewBox="0 0 20 20">
         <Path

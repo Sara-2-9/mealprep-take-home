@@ -21,7 +21,7 @@ const EMOJIS: { char: string; top: number; left: number; delay: number }[] = [
   { char: "🍎", top: 190, left: 48, delay: 0 },
   { char: "🥩", top: 173, left: 214, delay: 400 },
   { char: "🥕", top: 277, left: 292, delay: 800 },
-  { char: "🧀", top: 310, left: 5, delay: 1200 },
+  { char: "🧀", top: 310, left: 16, delay: 1200 },
   { char: "🫒", top: 428, left: 284, delay: 1600 },
   { char: "🌽", top: 448, left: 53, delay: 2000 },
   { char: "🍆", top: 485, left: 174, delay: 2400 },

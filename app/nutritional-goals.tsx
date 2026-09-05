@@ -45,9 +45,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: OPTION_GRID.gap,
+    columnGap: OPTION_GRID.gap,
+    rowGap: OPTION_GRID.gap,
     marginTop: OPTION_GRID.top - 175, // grid top 254, header ends ~175
-    justifyContent: "center",
+    justifyContent: "space-between",
   },
   cta: {
     flex: 1,

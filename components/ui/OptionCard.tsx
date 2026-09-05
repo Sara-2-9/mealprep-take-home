@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { OPTION_GRID } from "../../lib/theme";
@@ -21,6 +21,7 @@ export const OptionCard = memo(function OptionCard({
   selected,
   onPress,
 }: OptionCardProps) {
+  const [pressed, setPressed] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
@@ -29,7 +30,9 @@ export const OptionCard = memo(function OptionCard({
         Haptics.selectionAsync();
         onPress();
       }}
-      style={({ pressed }) => [
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={[
         styles.card,
         selected && styles.selected,
         pressed && { opacity: 0.85 },
@@ -50,6 +53,8 @@ const styles = StyleSheet.create({
   card: {
     width: OPTION_GRID.cardWidth,
     height: OPTION_GRID.cardHeight,
+    flexShrink: 1,
+    minWidth: 0,
     borderRadius: 20,
     backgroundColor: "#F2F2F7",
     alignItems: "center",
