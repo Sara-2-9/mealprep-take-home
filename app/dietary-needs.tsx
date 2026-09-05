@@ -1,5 +1,57 @@
-import { ScreenPlaceholder } from "../components/ui/ScreenPlaceholder";
+import { View, StyleSheet } from "react-native";
+import { ScreenContainer } from "../components/ui/ScreenContainer";
+import { FlowHeader } from "../components/ui/FlowHeader";
+import { OptionCard } from "../components/ui/OptionCard";
+import { CTAButton } from "../components/ui/CTAButton";
+import { useDietaryNeeds } from "../hooks/useDietaryNeeds";
+import { STEP_PROGRESS, OPTION_GRID } from "../lib/theme";
 
+/**
+ * Screen 03 — Dietary needs selection. 2x3 option grid, multi-select
+ * with exclusive "None".
+ */
 export default function DietaryNeedsScreen() {
-  return <ScreenPlaceholder step="03" title="Dietary needs selection" />;
+  const { options, selected, toggle, canContinue, goBack, goNext } =
+    useDietaryNeeds();
+
+  return (
+    <ScreenContainer>
+      <FlowHeader
+        title="Any dietary needs?"
+        progress={STEP_PROGRESS.dietaryNeeds}
+        onBack={goBack}
+      />
+
+      <View style={styles.grid}>
+        {options.map((option) => (
+          <OptionCard
+            key={option.id}
+            emoji={option.emoji}
+            label={option.label}
+            selected={selected.includes(option.id)}
+            onPress={() => toggle(option.id)}
+          />
+        ))}
+      </View>
+
+      <View style={styles.cta}>
+        <CTAButton label="Continue" onPress={goNext} disabled={!canContinue} />
+      </View>
+    </ScreenContainer>
+  );
 }
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: OPTION_GRID.gap,
+    marginTop: OPTION_GRID.top - 175, // grid top 254, header ends ~175
+    justifyContent: "center",
+  },
+  cta: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+});

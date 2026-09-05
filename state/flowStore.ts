@@ -3,19 +3,26 @@ import { create } from "zustand";
 export const BUDGET_MIN = 25;
 export const BUDGET_MAX = 150;
 export const BUDGET_STEP = 5;
-export const BUDGET_DEFAULT = 75;
+/** Default matches the Figma placeholder (€82) snapped to the €5 grid */
+export const BUDGET_DEFAULT = 80;
 
+/** Dietary needs as per Figma screen 03 */
 export type DietaryNeed =
-  | "vegetarian"
+  | "none"
+  | "veggie"
   | "vegan"
+  | "pescatarian"
   | "gluten-free"
-  | "lactose-free";
+  | "dairy-free";
 
+/** Nutritional goals as per Figma screen 04 */
 export type NutritionalGoal =
+  | "none"
   | "high-protein"
-  | "low-carb"
+  | "low-sugar"
   | "low-fat"
-  | "balanced";
+  | "low-carbs"
+  | "low-salt";
 
 interface FlowState {
   /** Weekly budget in EUR */
@@ -34,20 +41,27 @@ const initialState = {
   nutritionalGoals: [] as NutritionalGoal[],
 };
 
+/** "none" is exclusive: selecting it clears the rest; selecting another clears it. */
+function toggleExclusive<T extends string>(list: T[], item: T, noneValue: T): T[] {
+  if (item === noneValue) {
+    return list.includes(noneValue) ? [] : [noneValue];
+  }
+  const withoutNone = list.filter((v) => v !== noneValue);
+  return withoutNone.includes(item)
+    ? withoutNone.filter((v) => v !== item)
+    : [...withoutNone, item];
+}
+
 export const useFlowStore = create<FlowState>((set) => ({
   ...initialState,
   setBudget: (budget) => set({ budget }),
   toggleDietaryNeed: (need) =>
     set((state) => ({
-      dietaryNeeds: state.dietaryNeeds.includes(need)
-        ? state.dietaryNeeds.filter((n) => n !== need)
-        : [...state.dietaryNeeds, need],
+      dietaryNeeds: toggleExclusive(state.dietaryNeeds, need, "none"),
     })),
   toggleNutritionalGoal: (goal) =>
     set((state) => ({
-      nutritionalGoals: state.nutritionalGoals.includes(goal)
-        ? state.nutritionalGoals.filter((g) => g !== goal)
-        : [...state.nutritionalGoals, goal],
+      nutritionalGoals: toggleExclusive(state.nutritionalGoals, goal, "none"),
     })),
   reset: () => set(initialState),
 }));
