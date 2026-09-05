@@ -30,10 +30,12 @@ assets/fonts/ # Promo font family
 
 ## Setup
 
+Requires [Bun](https://bun.sh) (`~/.bun/bin` on PATH).
+
 ```bash
-npm install
+bun install
 cp .env.example .env   # add your OpenAI key
-npm run ios            # or: npm run android
+bunx expo start --ios  # or: bunx expo start --android
 ```
 
 ## Commits
