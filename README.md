@@ -5,7 +5,7 @@ Blackboard Mobile Software Engineer take-home.
 
 ## Stack
 
-- **Expo SDK 54** + Expo Router (TypeScript strict)
+- **Expo SDK 57** + Expo Router (TypeScript strict)
 - **NativeWind** (Tailwind for RN) — design tokens mapped from Figma
 - **Zustand** — flow state (budget, dietary needs, nutritional goals)
 - **Reanimated + Gesture Handler** — animations and custom slider
