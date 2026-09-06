@@ -17,8 +17,9 @@ interface ProgressBarProps {
 }
 
 /**
- * Figma component "LoadingBar" — 315x20 surface pill; green fill with a white
- * inner bar (6px, 12px inset). Fill animates between steps.
+ * Figma component "LoadingBar" — 315x20 surface pill; green fill with a
+ * lighter-green shine bar (#49DD76, 6px, 12px inset) anchored to the top
+ * of the pill, as in the updated design. Fill animates between steps.
  */
 export const ProgressBar = memo(function ProgressBar({ progress }: ProgressBarProps) {
   const animated = useSharedValue(progress);
@@ -60,13 +61,14 @@ const styles = StyleSheet.create({
     height,
     borderRadius: 99,
     backgroundColor: "#34C759",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   inner: {
     height: innerBarHeight,
     marginLeft: innerBarInset,
+    marginTop: 4,
     maxWidth: INNER_MAX,
     borderRadius: 99,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#49DD76",
   },
 });

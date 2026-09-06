@@ -55,24 +55,23 @@ const GOAL_THRESHOLDS: Record<
 };
 
 function hasAllergen(p: Product, allergen: string): boolean {
-  return (p.allergens ?? []).some((a) =>
-    typeof a === "string" ? a === allergen : false,
-  );
+  return (p.allergens ?? []).some((a) => a.id === allergen);
 }
 
 /** Hard pass/fail for a single product given the selected dietary needs */
 export function matchesDietaryNeeds(p: Product, needs: DietaryNeed[]): boolean {
   if (NON_MEAL_DEPARTMENTS.has(p.department.id)) return false;
+  const categoryName = p.category?.name ?? "";
   for (const need of needs) {
     if (need === "none") continue;
     if (EXCLUDED_DEPARTMENTS[need].includes(p.department.id)) {
       // dairy-free keeps the Eggs category out of latticini
-      if (!(need === "dairy-free" && DAIRY_FREE_KEPT_CATEGORIES.has(p.category.name))) {
+      if (!(need === "dairy-free" && DAIRY_FREE_KEPT_CATEGORIES.has(categoryName))) {
         return false;
       }
     }
     if (EXCLUDED_ALLERGENS[need].some((a) => hasAllergen(p, a))) return false;
-    if (need === "gluten-free" && GLUTEN_CATEGORIES.has(p.category.name)) {
+    if (need === "gluten-free" && GLUTEN_CATEGORIES.has(categoryName)) {
       return false;
     }
   }

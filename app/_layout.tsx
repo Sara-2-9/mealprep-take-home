@@ -12,8 +12,10 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     "Promo-Thin": require("../assets/fonts/Promo-Thin.ttf"),
     "Promo-ExtraLight": require("../assets/fonts/Promo-ExtraLight.ttf"),
+    "Promo-UltraLight": require("../assets/fonts/Promo-UltraLight.ttf"),
     "Promo-Light": require("../assets/fonts/Promo-Light.ttf"),
     "Promo-Regular": require("../assets/fonts/Promo-Regular.ttf"),
+    "Promo-Normal": require("../assets/fonts/Promo-Normal.ttf"),
     "Promo-Medium": require("../assets/fonts/Promo-Medium.ttf"),
     "Promo-SemiBold": require("../assets/fonts/Promo-SemiBold.ttf"),
     "Promo-Bold": require("../assets/fonts/Promo-Bold.ttf"),

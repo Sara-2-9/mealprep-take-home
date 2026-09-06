@@ -25,7 +25,8 @@ export interface Product {
   name: string;
   brand?: string;
   department: { id: string; name: string };
-  category: { id: string; name: string };
+  /** 93 catalog products have a null category — always guard access */
+  category?: { id: string; name: string } | null;
   quantity?: string;
   price: Money;
   unitPrice?: { amount: number; unit: string };
@@ -33,7 +34,8 @@ export interface Product {
   nutriScore?: "a" | "b" | "c" | "d" | "e";
   novaGroup?: number;
   labels?: ProductLabel[];
-  allergens?: string[];
+  /** Allergen entries are { id, name } objects, e.g. { id: "en:gluten" } */
+  allergens?: ProductLabel[];
 }
 
 export type Catalog = Product[];

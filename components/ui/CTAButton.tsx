@@ -41,7 +41,7 @@ export const CTAButton = memo(function CTAButton({
       ]}
     >
       <Text
-        className="font-promo"
+        className="font-promo-semibold"
         style={[styles.label, disabled ? styles.labelDisabled : styles.labelEnabled]}
       >
         {label}

@@ -33,7 +33,7 @@ export default function MealPlanScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.column}>
-        <Text className="font-promo" style={styles.title}>
+        <Text className="font-promo-bold" style={styles.title}>
           Bon appetit!
         </Text>
 
@@ -42,7 +42,7 @@ export default function MealPlanScreen() {
             Est. cost
           </Text>
           <View style={styles.costRow}>
-            <Text className="font-promo" style={styles.costValue}>
+            <Text className="font-promo-bold" style={styles.costValue}>
               €{Math.round(displayedCost)}
             </Text>
             <Text className="font-promo" style={styles.costSuffix}>
@@ -168,6 +168,7 @@ const styles = StyleSheet.create({
   pagerArea: {
     flex: 1,
     marginTop: MEAL_PLAN.cardTop - MEAL_PLAN.dayRowTop - MEAL_PLAN.dayCellHeight, // 32
+    marginBottom: MEAL_PLAN.cardTop - MEAL_PLAN.dayRowTop - MEAL_PLAN.dayCellHeight, // 32, same as top
   },
   errorWrap: {
     flex: 1,

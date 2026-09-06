@@ -62,7 +62,7 @@ export default function LanderScreen() {
 
   return (
     <ScreenContainer>
-      <Text className="font-promo" style={styles.logo}>
+      <Text className="font-promo-bold" style={styles.logo}>
         MealPrep
       </Text>
 

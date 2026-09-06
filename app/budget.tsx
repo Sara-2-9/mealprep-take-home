@@ -2,12 +2,15 @@ import { View, Text, StyleSheet } from "react-native";
 import { ScreenContainer } from "../components/ui/ScreenContainer";
 import { FlowHeader } from "../components/ui/FlowHeader";
 import { BudgetSlider } from "../components/ui/BudgetSlider";
+import { BudgetValue } from "../components/ui/BudgetValue";
 import { CTAButton } from "../components/ui/CTAButton";
 import { useBudgetSelection } from "../hooks/useBudgetSelection";
 import { STEP_PROGRESS } from "../lib/theme";
 
 /**
  * Screen 02 — Budget selection. Weekly budget, EUR 25–150, step 5.
+ * The big value renders through BudgetValue (masked green shine sweep,
+ * faithful to the Figma "TextAnimationSliding" node).
  */
 export default function BudgetScreen() {
   const { budget, setBudget, goBack, goNext } = useBudgetSelection();
@@ -21,10 +24,8 @@ export default function BudgetScreen() {
       />
 
       <View style={styles.center}>
-        <Text className="font-promo" style={styles.value}>
-          €{budget}
-        </Text>
-        <Text className="font-promo" style={styles.perWeek}>
+        <BudgetValue value={budget} />
+        <Text className="font-promo-medium" style={styles.perWeek}>
           per week
         </Text>
         <View style={styles.sliderWrap}>
@@ -44,12 +45,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  value: {
-    fontSize: 96,
-    lineHeight: 133.5,
-    color: "#1A1A1A",
-    textAlign: "center",
   },
   perWeek: {
     fontSize: 20,

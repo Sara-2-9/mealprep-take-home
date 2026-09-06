@@ -65,7 +65,7 @@ const DayCell = memo(function DayCell({
       ]}
     >
       <Text
-        className="font-promo"
+        className="font-promo-medium"
         style={[styles.label, active ? styles.labelActive : styles.labelInactive]}
       >
         {label}

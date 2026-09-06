@@ -26,7 +26,7 @@ export const FlowHeader = memo(function FlowHeader({
         <BackButton onPress={onBack} />
         <ProgressBar progress={progress} />
       </View>
-      <Text className="font-promo" style={styles.title}>
+      <Text className="font-promo-bold" style={styles.title}>
         {title}
       </Text>
     </View>

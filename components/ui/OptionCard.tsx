@@ -12,8 +12,8 @@ interface OptionCardProps {
 
 /**
  * Option card of the 2x3 grid (screens 03/04) — 168.5x104, radius 20.
- * Selected state is not in Figma (documented gap): we use the app's active-state
- * language — black background + white text, matching the day-cell active state.
+ * Selected state (from the updated Sara design): light-green background
+ * #E9FEF2 with a 4px inside border #49DD76; label stays black.
  */
 export const OptionCard = memo(function OptionCard({
   emoji,
@@ -39,10 +39,7 @@ export const OptionCard = memo(function OptionCard({
       ]}
     >
       {emoji ? <Text style={styles.emoji}>{emoji}</Text> : null}
-      <Text
-        className="font-promo"
-        style={[styles.label, selected && styles.labelSelected]}
-      >
+      <Text className="font-promo-semibold" style={styles.label}>
         {label}
       </Text>
     </Pressable>
@@ -62,7 +59,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   selected: {
-    backgroundColor: "#000000",
+    backgroundColor: "#E9FEF2",
+    borderWidth: 4,
+    borderColor: "#49DD76",
   },
   emoji: {
     fontSize: OPTION_GRID.emojiSize,
@@ -72,8 +71,5 @@ const styles = StyleSheet.create({
     fontSize: OPTION_GRID.labelSize,
     lineHeight: OPTION_GRID.labelLineHeight,
     color: "#000000",
-  },
-  labelSelected: {
-    color: "#FFFFFF",
   },
 });
