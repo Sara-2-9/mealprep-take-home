@@ -43,13 +43,16 @@ export default function RootLayout() {
         screen flashes through the corner gaps. `simple_push` restores the
         classic full-screen slide (no corner radius), and an opaque
         `contentStyle` background per screen kills any residual transparency
-        flicker. The root view gets the same cream background as a last
-        safety net behind the whole stack.
+        flicker. `animationMatchesGesture` makes the interactive swipe-back
+        use the same full-screen slide — iOS would otherwise force the
+        card-style system transition for gesture-driven pops. The root view
+        gets the same cream background as a last safety net behind the stack.
       */}
       <Stack
         screenOptions={{
           headerShown: false,
           animation: "simple_push",
+          animationMatchesGesture: true,
           contentStyle: { backgroundColor: "#FDFFFB" },
         }}
       >

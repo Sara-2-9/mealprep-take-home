@@ -91,9 +91,10 @@ file names are kebab-case, component/function exports stay PascalCase.
   28 unit tests on `src/lib/llm` (`bun test`).
 - ✅ Tooling hardening: React Compiler enabled (all manual memoization removed),
   codebase migrated to `src/` with kebab-case file names (Expo best practices),
-  stack transitions switched to `simple_push` + opaque per-screen
-  `contentStyle` backgrounds — fixes the iOS 26 card-style transition flicker
-  (rounded corners letting the underlying screen flash through).
+  stack transitions switched to `simple_push` (+ `animationMatchesGesture` so
+  the back swipe uses it too) with opaque per-screen `contentStyle`
+  backgrounds — fixes the iOS 26 card-style transition flicker (rounded
+  corners letting the underlying screen flash through).
 - ✅ Pressable-style issue root-caused: NativeWind's cssInterop on `Pressable`
   drops function-form `style` at runtime — keep static style arrays and track
   pressed state via `onPressIn`/`onPressOut` (see `cta-button.tsx`).
