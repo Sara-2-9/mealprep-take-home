@@ -14,8 +14,8 @@ interface MealPlanCardProps {
  * Content per the updated design (05_Weekly_meal_plan-Sara):
  * day name → meal title → meta row → Ingredients (green bullets) →
  * Recipe (green-numbered steps in tinted ellipses). Vertical scrolling
- * shows a custom tinted scrollbar (RN's native indicator can't be tinted).
- * Dark mode: #121612 card, white text, #1E2B24 ellipses/scrollbar.
+ * shows a custom primary-green scrollbar (RN's native indicator can't be
+ * tinted). Dark mode: #121612 card, white text, #1E2B24 ellipses.
  */
 export function MealPlanCard({ day }: MealPlanCardProps) {
   const { meal } = day;
@@ -154,7 +154,7 @@ export function MealPlanCard({ day }: MealPlanCardProps) {
           style={[
             styles.scrollbar,
             {
-              backgroundColor: colors.surfaceSelected,
+              backgroundColor: colors.accent,
               height: indicatorH,
               opacity: indicatorOpacity,
               transform: [{ translateY }],

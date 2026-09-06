@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
@@ -54,20 +60,26 @@ export default function MealPlanScreen() {
           >
             Est. cost
           </Text>
-          <View style={styles.costRow}>
-            <Text
-              className="font-promo-bold"
-              style={[styles.costValue, { color: colors.text }]}
-            >
-              €{Math.round(displayedCost)}
-            </Text>
-            <Text
-              className="font-promo"
-              style={[styles.costSuffix, { color: colors.text }]}
-            >
-              / week
-            </Text>
-          </View>
+          {status === "loading" ? (
+            // The value comes from the LLM plan — show a skeleton (same
+            // pulse as the day cards) until the real cost is confirmed.
+            <CostValueSkeleton />
+          ) : (
+            <View style={styles.costRow}>
+              <Text
+                className="font-promo-bold"
+                style={[styles.costValue, { color: colors.text }]}
+              >
+                €{Math.round(displayedCost)}
+              </Text>
+              <Text
+                className="font-promo"
+                style={[styles.costSuffix, { color: colors.text }]}
+              >
+                / week
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.dayRow}>
@@ -121,6 +133,32 @@ export default function MealPlanScreen() {
         )}
       </View>
     </View>
+  );
+}
+
+/** Pulsing placeholder for the Est. cost value while the plan generates. */
+function CostValueSkeleton() {
+  const colors = useColors();
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(0.45, { duration: 750, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+  }, [opacity]);
+
+  const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.costSkeleton,
+        { backgroundColor: colors.surface },
+        pulse,
+      ]}
+    />
   );
 }
 
@@ -205,6 +243,12 @@ const styles = StyleSheet.create({
   costSuffix: {
     fontSize: 16,
     lineHeight: 22.4,
+  },
+  costSkeleton: {
+    width: 96,
+    height: 28,
+    borderRadius: 99,
+    marginTop: 4,
   },
   dayRow: {
     marginTop: MEAL_PLAN.dayRowTop - MEAL_PLAN.costCardTop - MEAL_PLAN.costCardHeight, // 12
