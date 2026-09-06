@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
@@ -13,6 +14,8 @@ import { MEAL_PLAN, CONTENT_WIDTH, SCREEN_PADDING_X, WEEK_DAYS_FULL } from "../l
  * Screen 05 — Weekly meal plan. Green background, "Bon appetit!" title,
  * estimated-cost card, day selector and a horizontal day-card pager.
  * Final screen of the flow: no back button, no CTA.
+ * The pager is an Animated.ScrollView: swipe → selector sync runs in a
+ * Reanimated worklet on the UI thread (see use-meal-plan).
  */
 export default function MealPlanScreen() {
   const insets = useSafeAreaInsets();
@@ -25,7 +28,7 @@ export default function MealPlanScreen() {
     selectDay,
     retry,
     pagerRef,
-    onMomentumScrollEnd,
+    scrollHandler,
     pagerPadding,
   } = useMealPlan();
 
@@ -67,13 +70,14 @@ export default function MealPlanScreen() {
             <ErrorCard onRetry={retry} />
           </View>
         ) : (
-          <ScrollView
+          <Animated.ScrollView
             ref={pagerRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             snapToInterval={MEAL_PLAN.cardStride}
             decelerationRate="fast"
-            onMomentumScrollEnd={onMomentumScrollEnd}
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
             contentContainerStyle={{
               paddingHorizontal: pagerPadding,
               gap: MEAL_PLAN.cardStride - MEAL_PLAN.cardWidth,
@@ -94,7 +98,7 @@ export default function MealPlanScreen() {
                       <MealPlanCardSkeleton key={WEEK_DAYS_FULL[index]} />
                     ),
                 )}
-          </ScrollView>
+          </Animated.ScrollView>
         )}
       </View>
     </View>

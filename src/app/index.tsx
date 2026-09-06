@@ -16,15 +16,24 @@ import { CTAButton } from "../components/ui/cta-button";
  * Screen 01 — Lander. Pixel-perfect shell; the central assets are our creative
  * ownership per the brief: hero image + floating emojis with a gentle
  * Reanimated float loop (each emoji offset in phase).
+ *
+ * Geometry: the Figma canvas (393×852) places the 200×200 hero at (97,312)
+ * with the 40px emojis scattered around it. Both live inside a fixed-size
+ * 353×400 "stage" that is centered as ONE unit in the available space —
+ * so on any device height the emojis stay glued around the hero instead of
+ * anchoring to the container top. Canvas → stage conversion: origin (16,160).
  */
+const STAGE = { width: 353, height: 400 } as const;
+const HERO = { size: 200, top: 312 - 160, left: (STAGE.width - 200) / 2 } as const;
+
 const EMOJIS: { char: string; top: number; left: number; delay: number }[] = [
-  { char: "🍎", top: 190, left: 48, delay: 0 },
-  { char: "🥩", top: 173, left: 214, delay: 400 },
-  { char: "🥕", top: 277, left: 292, delay: 800 },
-  { char: "🧀", top: 310, left: 16, delay: 1200 },
-  { char: "🫒", top: 428, left: 284, delay: 1600 },
-  { char: "🌽", top: 448, left: 53, delay: 2000 },
-  { char: "🍆", top: 485, left: 174, delay: 2400 },
+  { char: "🍎", top: 190 - 160, left: 48 - 16, delay: 0 },
+  { char: "🥩", top: 173 - 160, left: 214 - 16, delay: 400 },
+  { char: "🥕", top: 277 - 160, left: 292 - 16, delay: 800 },
+  { char: "🧀", top: 310 - 160, left: 16 - 16, delay: 1200 },
+  { char: "🫒", top: 428 - 160, left: 284 - 16, delay: 1600 },
+  { char: "🌽", top: 448 - 160, left: 53 - 16, delay: 2000 },
+  { char: "🍆", top: 485 - 160, left: 174 - 16, delay: 2400 },
 ];
 
 function FloatingEmoji({
@@ -67,14 +76,16 @@ export default function LanderScreen() {
       </Text>
 
       <View style={styles.heroArea}>
-        {EMOJIS.map((e) => (
-          <FloatingEmoji key={e.char} {...e} />
-        ))}
-        <Image
-          source={require("../../assets/images/lander-hero.png")}
-          style={styles.hero}
-          resizeMode="cover"
-        />
+        <View style={styles.stage}>
+          {EMOJIS.map((e) => (
+            <FloatingEmoji key={e.char} {...e} />
+          ))}
+          <Image
+            source={require("../../assets/images/lander-hero.png")}
+            style={styles.hero}
+            resizeMode="cover"
+          />
+        </View>
       </View>
 
       <View style={styles.cta}>
@@ -99,9 +110,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  stage: {
+    width: STAGE.width,
+    height: STAGE.height,
+  },
   hero: {
-    width: 200,
-    height: 200,
+    position: "absolute",
+    top: HERO.top,
+    left: HERO.left,
+    width: HERO.size,
+    height: HERO.size,
     borderRadius: 24,
   },
   emoji: {
