@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { MEAL_PLAN, WEEK_DAYS } from "../../lib/theme";
+import { useColors, type Colors } from "../../lib/colors";
 
 interface DaySelectorProps {
   selectedIndex: number;
@@ -12,7 +13,9 @@ interface DaySelectorProps {
 
 /**
  * Figma "Frame 30" — row of 7 day cells (47x40, r=12, gap 4).
- * Active: black bg, white text. Inactive: white bg, 1px surface border.
+ * Light mode: active = black bg/white text, inactive = white bg/black text.
+ * Dark mode (on the unchanged green screen): active = white bg/black text,
+ * inactive = #121612 bg/white text.
  * NOTE: the Figma file swaps Wed/Thu; we keep calendar order.
  */
 export function DaySelector({
@@ -20,6 +23,7 @@ export function DaySelector({
   onSelect,
   disabled = false,
 }: DaySelectorProps) {
+  const colors = useColors();
   return (
     <View style={styles.row}>
       {WEEK_DAYS.map((day, index) => (
@@ -28,6 +32,7 @@ export function DaySelector({
           label={day}
           active={index === selectedIndex}
           disabled={disabled}
+          colors={colors}
           onPress={() => onSelect(index)}
         />
       ))}
@@ -39,11 +44,13 @@ function DayCell({
   label,
   active,
   disabled,
+  colors,
   onPress,
 }: {
   label: string;
   active: boolean;
   disabled: boolean;
+  colors: Colors;
   onPress: () => void;
 }) {
   const [pressed, setPressed] = useState(false);
@@ -60,13 +67,25 @@ function DayCell({
       onPressOut={() => setPressed(false)}
       style={[
         styles.cell,
-        active ? styles.cellActive : styles.cellInactive,
+        {
+          backgroundColor: active
+            ? colors.dayCellActiveBg
+            : colors.dayCellInactiveBg,
+          borderColor: active ? "transparent" : colors.surface,
+        },
         pressed && !disabled && { opacity: 0.7 },
       ]}
     >
       <Text
         className="font-promo-medium"
-        style={[styles.label, active ? styles.labelActive : styles.labelInactive]}
+        style={[
+          styles.label,
+          {
+            color: active
+              ? colors.dayCellActiveLabel
+              : colors.dayCellInactiveLabel,
+          },
+        ]}
       >
         {label}
       </Text>
@@ -83,25 +102,12 @@ const styles = StyleSheet.create({
     width: MEAL_PLAN.dayCellWidth,
     height: MEAL_PLAN.dayCellHeight,
     borderRadius: 12,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  cellActive: {
-    backgroundColor: "#000000",
-  },
-  cellInactive: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#F2F2F7",
   },
   label: {
     fontSize: 14,
     lineHeight: 19.6,
-  },
-  labelActive: {
-    color: "#FFFFFF",
-  },
-  labelInactive: {
-    color: "#000000",
   },
 });

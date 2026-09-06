@@ -11,6 +11,7 @@ import {
   BUDGET_MAX,
   BUDGET_STEP,
 } from "../../state/flow-store";
+import { useColors } from "../../lib/colors";
 
 const TRACK_WIDTH = 345;
 const TRACK_HEIGHT = 16;
@@ -27,11 +28,13 @@ interface BudgetSliderProps {
  * Custom budget slider — the Figma file only has a placeholder for this
  * (documented gap). Track 345x16 surface pill, 64px thumb, green fill.
  * EUR 25–150 in EUR 5 steps with snap + haptic tick per step.
+ * Dark mode: #2A2A2A track and thumb, green ring/fill unchanged.
  */
 export function BudgetSlider({
   value,
   onChange,
 }: BudgetSliderProps) {
+  const colors = useColors();
   const stepIndex = Math.round((value - BUDGET_MIN) / BUDGET_STEP);
   const position = useSharedValue(stepIndex * STEP_WIDTH);
   const start = useSharedValue(0);
@@ -73,10 +76,16 @@ export function BudgetSlider({
   return (
     <GestureDetector gesture={pan}>
       <View style={styles.container}>
-        <View style={styles.track}>
+        <View style={[styles.track, { backgroundColor: colors.surface }]}>
           <Animated.View style={[styles.fill, fillStyle]} />
         </View>
-        <Animated.View style={[styles.thumb, thumbStyle]} />
+        <Animated.View
+          style={[
+            styles.thumb,
+            { backgroundColor: colors.surface, borderColor: colors.accent },
+            thumbStyle,
+          ]}
+        />
       </View>
     </GestureDetector>
   );
@@ -92,7 +101,6 @@ const styles = StyleSheet.create({
     width: TRACK_WIDTH,
     height: TRACK_HEIGHT,
     borderRadius: 99,
-    backgroundColor: "#F2F2F7",
     overflow: "hidden",
     justifyContent: "center",
   },
@@ -105,8 +113,6 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: 99,
-    backgroundColor: "#F2F2F7",
     borderWidth: 2,
-    borderColor: "#34C759",
   },
 });

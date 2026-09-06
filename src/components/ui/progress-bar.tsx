@@ -7,6 +7,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { HEADER } from "../../lib/theme";
+import { useColors } from "../../lib/colors";
 
 const { width, height, innerBarHeight, innerBarInset } = HEADER.progressBar;
 const INNER_MAX = width - innerBarInset * 2;
@@ -20,8 +21,10 @@ interface ProgressBarProps {
  * Figma component "LoadingBar" — 315x20 surface pill; green fill with a
  * lighter-green shine bar (#49DD76, 6px, 12px inset) anchored to the top
  * of the pill, as in the updated design. Fill animates between steps.
+ * Dark mode: #2A2A2A track, green fill unchanged.
  */
 export function ProgressBar({ progress }: ProgressBarProps) {
+  const colors = useColors();
   const animated = useSharedValue(progress);
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export function ProgressBar({ progress }: ProgressBarProps) {
   }));
 
   return (
-    <View style={styles.track}>
+    <View style={[styles.track, { backgroundColor: colors.surface }]}>
       <Animated.View style={[styles.fill, fillStyle]}>
         <Animated.View style={[styles.inner, innerStyle]} />
       </Animated.View>
@@ -53,7 +56,6 @@ const styles = StyleSheet.create({
     width,
     height,
     borderRadius: 99,
-    backgroundColor: "#F2F2F7",
     overflow: "hidden",
     justifyContent: "center",
   },

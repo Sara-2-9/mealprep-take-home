@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { View, StyleSheet, useWindowDimensions, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SCREEN_PADDING_X, CONTENT_WIDTH, HEADER, CTA } from "../../lib/theme";
+import { useColors } from "../../lib/colors";
 
 interface ScreenContainerProps {
   children: ReactNode;
-  /** Screen background — cream for 01–04, primary green for 05 */
+  /** Screen background — defaults to the themed flow background */
   backgroundColor?: string;
   style?: ViewStyle;
 }
@@ -18,18 +19,19 @@ interface ScreenContainerProps {
  */
 export function ScreenContainer({
   children,
-  backgroundColor = "#FDFFFB",
+  backgroundColor,
   style,
 }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const colors = useColors();
   const paddingHorizontal = Math.max(SCREEN_PADDING_X, (width - CONTENT_WIDTH) / 2);
   return (
     <View
       style={[
         styles.base,
         {
-          backgroundColor,
+          backgroundColor: backgroundColor ?? colors.screenBackground,
           paddingTop: insets.top + (HEADER.top - 62),
           paddingBottom: insets.bottom + (CTA.bottom - 34),
           paddingHorizontal,

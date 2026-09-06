@@ -10,6 +10,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { CONTENT_WIDTH } from "../../lib/theme";
+import { useColors } from "../../lib/colors";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
@@ -29,6 +30,7 @@ interface BudgetValueProps {
  * shape clips the animated gradient rect, no extra native deps needed.
  */
 export function BudgetValue({ value }: BudgetValueProps) {
+  const colors = useColors();
   const shineX = useSharedValue(-SHINE_WIDTH);
 
   useEffect(() => {
@@ -71,14 +73,15 @@ export function BudgetValue({ value }: BudgetValueProps) {
           </Mask>
         </Defs>
 
-        {/* Base text */}
+        {/* Base text (shine sweep identical in both modes; only this
+            base color changes: dark ink in light mode, white in dark) */}
         <SvgText
           x={centerX}
           y={baselineY}
           textAnchor="middle"
           fontFamily="Promo-Bold"
           fontSize={96}
-          fill="#1A1A1A"
+          fill={colors.budgetValue}
         >
           {label}
         </SvgText>

@@ -54,6 +54,18 @@ file names are kebab-case, component/function exports stay PascalCase.
 - `src/state/flow-store.ts` — Zustand flow store: `{ budget, dietaryNeeds, nutritionalGoals }`.
 - `src/data/product_catalog_en.json` — 3,295-product catalog; index once, memoize filters.
 
+## Navigation chrome & theming
+
+- The flow header (back button + ProgressBar, screens 02–04) is a FIXED overlay
+  in `src/app/_layout.tsx` driven by route → `STEP_PROGRESS` — it never unmounts
+  during stack transitions, so the bar animates 25→50→75 in place. Screens render
+  only their title via `FlowTitle`. Do not reintroduce per-screen headers.
+- Dark mode follows the device (`userInterfaceStyle: "automatic"`): all colors
+  come from `useColors()` (`src/lib/colors.ts`, light/dark palettes; anchors:
+  dark bg #121612, surface #2A2A2A, selected surface #1E2B24). Never hardcode
+  color literals in components — extend the palettes instead. Screen 05 keeps
+  its green background in both modes.
+
 ## LLM workflow (screen 05)
 
 - `src/lib/llm/schema.ts` — Zod schema = single source of truth (model output has no

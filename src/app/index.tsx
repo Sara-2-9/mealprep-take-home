@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { ScreenContainer } from "../components/ui/screen-container";
 import { CTAButton } from "../components/ui/cta-button";
+import { useColors } from "../lib/colors";
 
 /**
  * Screen 01 — Lander. Pixel-perfect shell; the central assets are our creative
@@ -100,10 +101,11 @@ function FloatingEmoji({
 
 export default function LanderScreen() {
   const router = useRouter();
+  const colors = useColors();
 
   return (
     <ScreenContainer>
-      <Text className="font-promo-bold" style={styles.logo}>
+      <Text className="font-promo-bold" style={[styles.logo, { color: colors.text }]}>
         MealPrep
       </Text>
 
@@ -113,9 +115,11 @@ export default function LanderScreen() {
             <FloatingEmoji key={e.char} {...e} />
           ))}
           <Image
-            source={require("../../assets/images/lander-hero.png")}
+            // Transparent-background bag: works on both the cream light
+            // background and the #121612 dark one
+            source={require("../../assets/images/lander-hero-without-bg.png")}
             style={styles.hero}
-            resizeMode="cover"
+            resizeMode="contain"
           />
         </View>
       </View>
@@ -134,7 +138,6 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 48,
     lineHeight: 66.8,
-    color: "#000000",
     textAlign: "center",
   },
   heroArea: {

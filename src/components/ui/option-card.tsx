@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { OPTION_GRID } from "../../lib/theme";
+import { useColors } from "../../lib/colors";
 
 interface OptionCardProps {
   emoji?: string;
@@ -12,8 +13,9 @@ interface OptionCardProps {
 
 /**
  * Option card of the 2x3 grid (screens 03/04) — 168.5x104, radius 20.
- * Selected state (from the updated Sara design): light-green background
- * #E9FEF2 with a 4px inside border #49DD76; label stays black.
+ * Selected state (from the updated Sara design): tinted background with a
+ * 4px inside border #49DD76 — light green #E9FEF2 in light mode, #1E2B24
+ * in dark mode; unselected = surface (#F2F2F7 / #2A2A2A).
  */
 export function OptionCard({
   emoji,
@@ -22,6 +24,7 @@ export function OptionCard({
   onPress,
 }: OptionCardProps) {
   const [pressed, setPressed] = useState(false);
+  const colors = useColors();
   return (
     <Pressable
       accessibilityRole="button"
@@ -34,12 +37,19 @@ export function OptionCard({
       onPressOut={() => setPressed(false)}
       style={[
         styles.card,
-        selected && styles.selected,
+        { backgroundColor: colors.surface },
+        selected && {
+          backgroundColor: colors.surfaceSelected,
+          borderColor: colors.accentSoft,
+        },
         pressed && { opacity: 0.85 },
       ]}
     >
       {emoji ? <Text style={styles.emoji}>{emoji}</Text> : null}
-      <Text className="font-promo-semibold" style={styles.label}>
+      <Text
+        className="font-promo-semibold"
+        style={[styles.label, { color: colors.text }]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -53,15 +63,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
     borderRadius: 20,
-    backgroundColor: "#F2F2F7",
+    borderWidth: 4,
+    borderColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-  },
-  selected: {
-    backgroundColor: "#E9FEF2",
-    borderWidth: 4,
-    borderColor: "#49DD76",
   },
   emoji: {
     fontSize: OPTION_GRID.emojiSize,
@@ -70,6 +76,5 @@ const styles = StyleSheet.create({
   label: {
     fontSize: OPTION_GRID.labelSize,
     lineHeight: OPTION_GRID.labelLineHeight,
-    color: "#000000",
   },
 });

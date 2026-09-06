@@ -5,6 +5,7 @@ import { BudgetSlider } from "../components/ui/budget-slider";
 import { BudgetValue } from "../components/ui/budget-value";
 import { CTAButton } from "../components/ui/cta-button";
 import { useBudgetSelection } from "../hooks/use-budget-selection";
+import { useColors } from "../lib/colors";
 
 /**
  * Screen 02 — Budget selection. Weekly budget, EUR 25–150, step 5.
@@ -14,6 +15,7 @@ import { useBudgetSelection } from "../hooks/use-budget-selection";
  */
 export default function BudgetScreen() {
   const { budget, setBudget, goNext } = useBudgetSelection();
+  const colors = useColors();
 
   return (
     <ScreenContainer>
@@ -23,7 +25,7 @@ export default function BudgetScreen() {
         <BudgetValue value={budget} />
         <Text
           className="font-promo-medium"
-          style={styles.perWeek}
+          style={[styles.perWeek, { color: colors.textSecondary }]}
         >
           per week
         </Text>
@@ -48,7 +50,6 @@ const styles = StyleSheet.create({
   perWeek: {
     fontSize: 20,
     lineHeight: 28,
-    color: "rgba(60,60,67,0.6)",
     textAlign: "center",
     marginTop: -18,
   },

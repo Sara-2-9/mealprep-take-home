@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackButton } from "../components/ui/back-button";
 import { ProgressBar } from "../components/ui/progress-bar";
+import { useColors } from "../lib/colors";
 import { CONTENT_WIDTH, HEADER, STEP_PROGRESS } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
@@ -51,6 +52,7 @@ function FixedFlowHeader() {
 }
 
 export default function RootLayout() {
+  const colors = useColors();
   const [fontsLoaded, fontError] = useFonts({
     "Promo-Thin": require("../../assets/fonts/Promo-Thin.ttf"),
     "Promo-ExtraLight": require("../../assets/fonts/Promo-ExtraLight.ttf"),
@@ -74,8 +76,10 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <StatusBar style="dark" />
+    <GestureHandlerRootView
+      style={[styles.root, { backgroundColor: colors.screenBackground }]}
+    >
+      <StatusBar style={colors.statusBar} />
       {/*
         Transition glitch fix (iOS 26): the default native-stack push uses the
         new card-style transition with rounded corners, and the native screen
@@ -93,7 +97,7 @@ export default function RootLayout() {
           headerShown: false,
           animation: "simple_push",
           animationMatchesGesture: true,
-          contentStyle: { backgroundColor: "#FDFFFB" },
+          contentStyle: { backgroundColor: colors.screenBackground },
         }}
       >
         <Stack.Screen name="index" />
@@ -113,7 +117,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#FDFFFB",
   },
   header: {
     position: "absolute",

@@ -61,7 +61,6 @@ export const MEAL_PLAN = {
   /** Horizontal pager: side peek (28) + gap between cards (12) → stride 349 */
   cardPeek: 28,
   cardStride: 337 + 12,
-  metaIconColor: "#3C3C43",
 } as const;
 
 /** Day labels in calendar order (the Figma file swaps Wed/Thu — we don't) */
