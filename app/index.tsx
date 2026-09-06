@@ -107,8 +107,8 @@ const styles = StyleSheet.create({
   emoji: {
     position: "absolute",
     fontSize: 40,
-    width: 40,
-    height: 40,
+    width: 46,
+    height: 46,
     lineHeight: 48,
     zIndex: 1,
   },
