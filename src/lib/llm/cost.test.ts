@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { ingredientCost, mealCost, priceWeeklyPlan, round2 } from "./cost";
+import {
+  ingredientCost,
+  mealCost,
+  pricePartialDay,
+  priceWeeklyPlan,
+  round2,
+} from "./cost";
 import { makeValidPlan } from "./schema.test";
 import { weeklyCost } from "../meal-plan";
 
@@ -57,5 +63,47 @@ describe("mealCost / priceWeeklyPlan", () => {
     plan.days[2].meal.ingredients[0].productId = "9999999999999";
     const { unknownProductIds } = priceWeeklyPlan(plan);
     expect(unknownProductIds).toEqual(["9999999999999"]);
+  });
+
+  test("priceWeeklyPlan resolves ingredient names from the catalog", () => {
+    const { plan } = priceWeeklyPlan(makeValidPlan());
+    // Names are not in the model output — they come from the catalog
+    expect(plan.days[0].meal.ingredients[0].name.length).toBeGreaterThan(0);
+  });
+});
+
+describe("pricePartialDay (progressive streaming)", () => {
+  test("returns null until day and meal name have streamed", () => {
+    expect(pricePartialDay(undefined)).toBeNull();
+    expect(pricePartialDay({})).toBeNull();
+    expect(pricePartialDay({ day: "Monday" })).toBeNull();
+    expect(pricePartialDay({ day: "Monday", meal: {} })).toBeNull();
+  });
+
+  test("maps a partially streamed day with catalog names and partial cost", () => {
+    const partial = pricePartialDay({
+      day: "Monday",
+      meal: {
+        name: "Penne al pomodoro",
+        // prepTimeMinutes/servings not streamed yet
+        ingredients: [
+          { productId: "8005121050271", grams: 160 }, // amount missing
+          { productId: "8003170094871" }, // grams missing → not priced
+        ],
+        steps: ["Boil pasta", undefined],
+      },
+    });
+    expect(partial).not.toBeNull();
+    expect(partial!.day).toBe("Monday");
+    expect(partial!.meal.name).toBe("Penne al pomodoro");
+    expect(partial!.meal.servings).toBe(2); // default
+    expect(partial!.meal.ingredients[0].name.length).toBeGreaterThan(0);
+    expect(partial!.meal.ingredients[0].amount).toBe("");
+    // Only the first ingredient contributes: 160g × 1.78€/kg / 2 servings
+    expect(partial!.meal.pricePerServing).toBeCloseTo(
+      round2(((160 / 1000) * 1.78) / 2),
+      5,
+    );
+    expect(partial!.meal.steps).toEqual(["Boil pasta"]);
   });
 });

@@ -7,8 +7,9 @@ import {
 } from "react-native";
 import { useFlowStore } from "../state/flow-store";
 import { generateMealPlan } from "../lib/llm/client";
-import type { WeeklyPlan } from "../lib/meal-plan";
-import { MEAL_PLAN } from "../lib/theme";
+import { pricePartialDay } from "../lib/llm/cost";
+import type { DayPlan, WeeklyPlan } from "../lib/meal-plan";
+import { MEAL_PLAN, WEEK_DAYS_FULL } from "../lib/theme";
 
 export type MealPlanStatus = "loading" | "ready" | "error";
 
@@ -21,10 +22,17 @@ interface CacheEntry {
 /** Keeps the generated plan when navigating away and back within a session */
 let cache: CacheEntry | null = null;
 
+/** Progressive rendering: partial snapshots flush to state at ~4 fps max */
+const PARTIAL_FLUSH_MS = 250;
+
 /**
  * Business logic for screen 05 — weekly meal plan.
- * Orchestrates the LLM workflow (generate → validate → retry) and the
- * day pager (selector ↔ horizontal scroll sync).
+ * Orchestrates the LLM workflow (streaming generate → validate → retry) and
+ * the day pager (selector ↔ horizontal scroll sync).
+ *
+ * While the plan streams in, `partialDays` exposes per-day DayPlans as soon
+ * as each day's name has arrived (null = still pending → skeleton), so the
+ * UI fills in day by day instead of waiting for the full response.
  *
  * Memoization is handled by the React Compiler (experiments.reactCompiler).
  * The generation effect is written so that correctness never depends on
@@ -45,14 +53,36 @@ export function useMealPlan() {
   const [totalCost, setTotalCost] = useState<number | null>(
     cached?.totalCost ?? null,
   );
+  const [partialDays, setPartialDays] = useState<(DayPlan | null)[] | null>(
+    null,
+  );
   const [selectedDay, setSelectedDay] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
+  const lastPartialFlush = useRef(0);
   const { width } = useWindowDimensions();
 
   useEffect(() => {
     if (status !== "loading") return;
     let cancelled = false;
-    generateMealPlan({ budget, dietaryNeeds, nutritionalGoals })
+    setPartialDays(null);
+    generateMealPlan(
+      { budget, dietaryNeeds, nutritionalGoals },
+      {
+        onPartial: (partial) => {
+          // Throttle: the stream emits a snapshot per few tokens; re-rendering
+          // 7 cards per snapshot would waste frames. Trailing chunks are
+          // covered by the final setPlan below.
+          const now = Date.now();
+          if (cancelled || now - lastPartialFlush.current < PARTIAL_FLUSH_MS) {
+            return;
+          }
+          lastPartialFlush.current = now;
+          setPartialDays(
+            WEEK_DAYS_FULL.map((_, i) => pricePartialDay(partial.days?.[i])),
+          );
+        },
+      },
+    )
       .then((result) => {
         if (cancelled) return;
         cache = {
@@ -62,11 +92,13 @@ export function useMealPlan() {
         };
         setPlan(result.plan);
         setTotalCost(result.totalCost);
+        setPartialDays(null);
         setStatus("ready");
       })
       .catch((error) => {
         if (cancelled) return;
         console.warn("[useMealPlan] generation failed:", error);
+        setPartialDays(null);
         setStatus("error");
       });
     return () => {
@@ -96,6 +128,8 @@ export function useMealPlan() {
   return {
     status,
     plan,
+    /** Per-day progressive plans while streaming (null entry = pending) */
+    partialDays,
     /** Estimated weekly cost once ready, otherwise the selected budget */
     displayedCost: totalCost ?? budget,
     selectedDay,

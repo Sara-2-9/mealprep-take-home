@@ -57,13 +57,17 @@ file names are kebab-case, component/function exports stay PascalCase.
 ## LLM workflow (screen 05)
 
 - `src/lib/llm/schema.ts` — Zod schema = single source of truth (model output has no
-  prices; ingredients carry `grams` for deterministic costing).
+  prices and no ingredient names — names are resolved locally by productId;
+  recipes are capped at 10 ingredients / 8 steps to keep the streamed output small).
 - `src/lib/llm/prompt.ts` — messages builder; basket lines include €/kg, macros
   per 100g, Nutri-Score and allergens so the model can reason about goals.
 - `src/lib/llm/cost.ts` — deterministic pricing from catalog €/kg × grams
-  (`priceWeeklyPlan` → app-facing `WeeklyPlan` with computed `pricePerServing`).
-- `src/lib/llm/client.ts` — AI SDK `generateText` + `Output.object`; injectable
-  `PlanGenerator` for tests; domain validation (catalog ids, real budget) with
+  (`priceWeeklyPlan` → app-facing `WeeklyPlan` with computed `pricePerServing`);
+  `pricePartialDay` maps partially streamed days for progressive rendering.
+- `src/lib/llm/client.ts` — default path is `streamText` + `Output.object` with
+  `expo/fetch` (Hermes streaming): partial snapshots flow to screen 05 via
+  `onPartial` and days render as they arrive. Injectable `generate` (one-shot)
+  and `stream` for tests; domain validation (catalog ids, real budget) with
   one feedback retry. Model via `EXPO_PUBLIC_MEALPLAN_MODEL` (default
   `gpt-4o-mini`); provider swap = one line (`createOpenAI` → other provider).
 - Unit tests colocated: `src/lib/llm/*.test.ts`, run with `bun test`.

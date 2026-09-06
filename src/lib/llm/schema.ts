@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DeepPartial } from "ai";
 
 /**
  * Zod schema for the LLM-generated weekly meal plan — the single source of
@@ -23,7 +24,6 @@ export const WEEK_DAY_NAMES = [
 
 export const planIngredientSchema = z.object({
   productId: z.string().describe("Exact product id from the catalog basket"),
-  name: z.string().describe("Exact product name from the catalog basket"),
   amount: z
     .string()
     .describe('Human-readable amount for display, e.g. "400g", "2 cloves"'),
@@ -33,14 +33,18 @@ export const planIngredientSchema = z.object({
     .describe(
       "Grams of product actually used in the recipe (ml ≈ g for liquids). Drives exact cost computation.",
     ),
+  // NOTE: no `name` field — output slimming. Names are resolved locally
+  // from the catalog via productId (lib/llm/cost.ts), saving ~2 tokens per
+  // ingredient per day on the critical output path.
 });
 
 export const planMealSchema = z.object({
   name: z.string(),
   prepTimeMinutes: z.number(),
   servings: z.number(),
-  ingredients: z.array(planIngredientSchema).min(2),
-  steps: z.array(z.string()).min(3),
+  // Capped to keep the streamed output (and thus time-to-full-plan) small.
+  ingredients: z.array(planIngredientSchema).min(2).max(10),
+  steps: z.array(z.string()).min(3).max(8),
 });
 
 export const dayPlanSchema = z.object({
@@ -57,3 +61,9 @@ export type LLMPlanIngredient = z.infer<typeof planIngredientSchema>;
 export type LLMPlanMeal = z.infer<typeof planMealSchema>;
 export type LLMDayPlan = z.infer<typeof dayPlanSchema>;
 export type LLMWeeklyPlan = z.infer<typeof weeklyPlanSchema>;
+
+/**
+ * Shape of a day while the plan is still streaming: every field may be
+ * missing until its tokens arrive. Used for progressive rendering.
+ */
+export type PartialDayPlan = DeepPartial<LLMDayPlan>;

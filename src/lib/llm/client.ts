@@ -3,6 +3,8 @@ import {
   generateText,
   NoOutputGeneratedError,
   Output,
+  streamText,
+  type DeepPartial,
   type ModelMessage,
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -16,9 +18,16 @@ import {
 } from "./prompt";
 
 /**
- * Meal-plan LLM workflow on the Vercel AI SDK (Phase 3, step 22).
- * `generateText` + `Output.object` gives schema-validated, typed output from
- * the Zod schema; the provider is swappable by changing one line (or the
+ * Meal-plan LLM workflow on the Vercel AI SDK (Phase 3, step 22; streaming
+ * added in the latency pass).
+ *
+ * Default path: `streamText` + `Output.object` — partial plan snapshots are
+ * forwarded via `onPartial` so screen 05 can render days progressively while
+ * the model is still generating (perceived-latency win; the full wait is
+ * dominated by output-token generation). On Hermes, streaming requires
+ * `expo/fetch` (RN's default fetch buffers the whole response).
+ *
+ * The provider is swappable by changing one line (or the
  * EXPO_PUBLIC_MEALPLAN_MODEL env var). Domain validation (catalog ids, real
  * budget computed from catalog prices) stays custom, with one retry carrying
  * the rejection reason back to the model.
@@ -45,6 +54,22 @@ export type PlanGenerator = (
   messages: ModelMessage[],
 ) => Promise<LLMWeeklyPlan>;
 
+/** Progressive plan shape while streaming (every field may be missing). */
+export type PartialWeeklyPlan = DeepPartial<LLMWeeklyPlan>;
+
+export interface PlanStream {
+  /** Deep-partial plan snapshots as tokens arrive. */
+  partials: AsyncIterable<PartialWeeklyPlan>;
+  /** Resolves with the complete, schema-validated plan. */
+  output: Promise<LLMWeeklyPlan>;
+}
+
+/**
+ * Streaming counterpart of PlanGenerator — injectable so tests can drive the
+ * streaming path without network.
+ */
+export type PlanStreamer = (messages: ModelMessage[]) => PlanStream;
+
 function toMealPlanError(error: unknown): MealPlanError {
   if (error instanceof MealPlanError) return error;
   if (NoOutputGeneratedError.isInstance(error)) {
@@ -63,27 +88,37 @@ function toMealPlanError(error: unknown): MealPlanError {
   return new MealPlanError("Unexpected LLM error", "api");
 }
 
+function outputSpec() {
+  return Output.object({
+    schema: weeklyPlanSchema,
+    name: "weekly_meal_plan",
+    description:
+      "7-day dinner plan built exclusively from the provided supermarket catalog",
+  });
+}
+
+/** AI SDK 7: system messages go in the dedicated option, not in `messages`. */
+function splitSystem(messages: ModelMessage[]) {
+  const systemMessage = messages.find((m) => m.role === "system");
+  return {
+    system:
+      typeof systemMessage?.content === "string"
+        ? systemMessage.content
+        : undefined,
+    conversation: messages.filter((m) => m.role !== "system"),
+  };
+}
+
 function createOpenAIGenerator(apiKey: string): PlanGenerator {
   const openai = createOpenAI({ apiKey });
   return async (messages) => {
-    // AI SDK 7: system messages are not allowed in `messages` — they go in
-    // the dedicated `system` option.
-    const systemMessage = messages.find((m) => m.role === "system");
-    const conversation = messages.filter((m) => m.role !== "system");
+    const { system, conversation } = splitSystem(messages);
     try {
       const result = await generateText({
         model: openai(MODEL_ID),
-        system:
-          typeof systemMessage?.content === "string"
-            ? systemMessage.content
-            : undefined,
+        system,
         messages: conversation,
-        output: Output.object({
-          schema: weeklyPlanSchema,
-          name: "weekly_meal_plan",
-          description:
-            "7-day dinner plan built exclusively from the provided supermarket catalog",
-        }),
+        output: outputSpec(),
         temperature: 0.7,
         maxRetries: 2,
       });
@@ -91,6 +126,39 @@ function createOpenAIGenerator(apiKey: string): PlanGenerator {
     } catch (error) {
       throw toMealPlanError(error);
     }
+  };
+}
+
+const isReactNative =
+  typeof navigator !== "undefined" &&
+  (navigator as { product?: string }).product === "ReactNative";
+
+function createOpenAIStreamer(apiKey: string): PlanStreamer {
+  // expo/fetch is streaming-capable on Hermes; outside RN (bun tests/scripts)
+  // the global fetch streams natively.
+  const fetchImpl = isReactNative
+    ? // Conditional require: expo/fetch only exists in the RN runtime
+      (require("expo/fetch").fetch as unknown as typeof globalThis.fetch)
+    : undefined;
+  const openai = createOpenAI(
+    fetchImpl ? { apiKey, fetch: fetchImpl } : { apiKey },
+  );
+  return (messages) => {
+    const { system, conversation } = splitSystem(messages);
+    const result = streamText({
+      model: openai(MODEL_ID),
+      system,
+      messages: conversation,
+      output: outputSpec(),
+      temperature: 0.7,
+      maxRetries: 2,
+    });
+    return {
+      partials: result.partialOutputStream,
+      output: Promise.resolve(result.output).catch((error: unknown) => {
+        throw toMealPlanError(error);
+      }),
+    };
   };
 }
 
@@ -114,21 +182,48 @@ export interface MealPlanResult {
   totalCost: number;
 }
 
+export interface GenerateMealPlanOptions {
+  /** One-shot (non-streaming) generator — tests inject this. */
+  generate?: PlanGenerator;
+  /** Streaming generator — tests inject this; defaults to OpenAI + expo/fetch. */
+  stream?: PlanStreamer;
+  /** Called with deep-partial plan snapshots as tokens stream in. */
+  onPartial?: (partial: PartialWeeklyPlan) => void;
+}
+
 export async function generateMealPlan(
   request: MealPlanRequest,
-  generate?: PlanGenerator,
+  options: GenerateMealPlanOptions = {},
 ): Promise<MealPlanResult> {
-  if (!generate) {
+  const { generate, onPartial } = options;
+  let stream = options.stream;
+  if (!generate && !stream) {
     const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
     if (!apiKey || apiKey.startsWith("sk-your")) {
       throw new MealPlanError("Missing OpenAI API key (.env)", "missing-key");
     }
-    generate = createOpenAIGenerator(apiKey);
+    stream = createOpenAIStreamer(apiKey);
   }
 
   const messages: ModelMessage[] = [...buildMealPlanMessages(request)];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const llmPlan = await generate(messages);
+    let llmPlan: LLMWeeklyPlan;
+    try {
+      if (generate) {
+        llmPlan = await generate(messages);
+      } else {
+        const { partials, output } = stream!(messages);
+        if (onPartial) {
+          for await (const partial of partials) {
+            onPartial(partial);
+          }
+        }
+        llmPlan = await output;
+      }
+    } catch (error) {
+      throw toMealPlanError(error);
+    }
+
     const { plan, unknownProductIds } = priceWeeklyPlan(llmPlan);
     const rejection =
       unknownProductIds.length > 0

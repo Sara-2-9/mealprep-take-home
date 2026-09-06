@@ -13,13 +13,11 @@ export function makeValidPlan(): LLMWeeklyPlan {
         ingredients: [
           {
             productId: "8005121050271", // Penne, 1.78 €/kg
-            name: "27 Penne with Tomato and Spinach",
             amount: "160g",
             grams: 160,
           },
           {
             productId: "8003170094871", // Eggs, 3.59 €/kg
-            name: "4 Fresh organic eggs",
             amount: "2 eggs",
             grams: 110,
           },
@@ -78,5 +76,23 @@ describe("weeklyPlanSchema", () => {
     const fewSteps = structuredClone(plan);
     fewSteps.days[0].meal.steps = ["Boil pasta", "Serve"];
     expect(weeklyPlanSchema.safeParse(fewSteps).success).toBe(false);
+  });
+
+  test("caps recipes at 10 ingredients and 8 steps (output slimming)", () => {
+    const plan = makeValidPlan();
+    const manyIngredients = structuredClone(plan);
+    manyIngredients.days[0].meal.ingredients = Array.from(
+      { length: 11 },
+      (_, i) => ({
+        productId: "8005121050271",
+        amount: "10g",
+        grams: 10 + i,
+      }),
+    );
+    expect(weeklyPlanSchema.safeParse(manyIngredients).success).toBe(false);
+
+    const manySteps = structuredClone(plan);
+    manySteps.days[0].meal.steps = Array.from({ length: 9 }, (_, i) => `Step ${i}`);
+    expect(weeklyPlanSchema.safeParse(manySteps).success).toBe(false);
   });
 });

@@ -19,6 +19,7 @@ export default function MealPlanScreen() {
   const {
     status,
     plan,
+    partialDays,
     displayedCost,
     selectedDay,
     selectDay,
@@ -73,15 +74,26 @@ export default function MealPlanScreen() {
             snapToInterval={MEAL_PLAN.cardStride}
             decelerationRate="fast"
             onMomentumScrollEnd={onMomentumScrollEnd}
-            scrollEnabled={status === "ready"}
             contentContainerStyle={{
               paddingHorizontal: pagerPadding,
               gap: MEAL_PLAN.cardStride - MEAL_PLAN.cardWidth,
             }}
           >
+            {/*
+              Progressive rendering: while the plan streams, each day shows
+              its (partially priced) card as soon as it arrives; days still
+              pending keep the skeleton.
+            */}
             {status === "ready" && plan
               ? plan.days.map((day) => <MealPlanCard key={day.day} day={day} />)
-              : WEEK_DAYS_FULL.map((day) => <MealPlanCardSkeleton key={day} />)}
+              : (partialDays ?? WEEK_DAYS_FULL.map(() => null)).map(
+                  (dayPlan, index) =>
+                    dayPlan ? (
+                      <MealPlanCard key={dayPlan.day} day={dayPlan} />
+                    ) : (
+                      <MealPlanCardSkeleton key={WEEK_DAYS_FULL[index]} />
+                    ),
+                )}
           </ScrollView>
         )}
       </View>
