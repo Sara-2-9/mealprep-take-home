@@ -22,9 +22,13 @@ import { CTAButton } from "../components/ui/cta-button";
  * 353×400 "stage" that is centered as ONE unit in the available space —
  * so on any device height the emojis stay glued around the hero instead of
  * anchoring to the container top. Canvas → stage conversion: origin (16,160).
+ *
+ * The hero is centered on the bounding box of the emoji cluster (computed
+ * from EMOJIS below, so the two can never drift apart) — not on the stage
+ * rect, which would leave it optically low-right of the emoji ring.
  */
 const STAGE = { width: 353, height: 400 } as const;
-const HERO = { size: 200, top: 312 - 160, left: (STAGE.width - 200) / 2 } as const;
+const EMOJI_BOX = 46; // emoji layout box, see styles.emoji
 
 const EMOJIS: { char: string; top: number; left: number; delay: number }[] = [
   { char: "🍎", top: 190 - 160, left: 48 - 16, delay: 0 },
@@ -35,6 +39,24 @@ const EMOJIS: { char: string; top: number; left: number; delay: number }[] = [
   { char: "🌽", top: 448 - 160, left: 53 - 16, delay: 2000 },
   { char: "🍆", top: 485 - 160, left: 174 - 16, delay: 2400 },
 ];
+
+const clusterCenter = {
+  x:
+    (Math.min(...EMOJIS.map((e) => e.left)) +
+      Math.max(...EMOJIS.map((e) => e.left)) +
+      EMOJI_BOX) /
+    2,
+  y:
+    (Math.min(...EMOJIS.map((e) => e.top)) +
+      Math.max(...EMOJIS.map((e) => e.top)) +
+      EMOJI_BOX) /
+    2,
+};
+const HERO = {
+  size: 200,
+  left: clusterCenter.x - 100,
+  top: clusterCenter.y - 100,
+} as const;
 
 function FloatingEmoji({
   char,
@@ -125,8 +147,8 @@ const styles = StyleSheet.create({
   emoji: {
     position: "absolute",
     fontSize: 40,
-    width: 46,
-    height: 46,
+    width: EMOJI_BOX,
+    height: EMOJI_BOX,
     lineHeight: 48,
     zIndex: 1,
   },

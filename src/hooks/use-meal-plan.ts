@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useWindowDimensions } from "react-native";
-import Animated, {
+import { useWindowDimensions, type ScrollView } from "react-native";
+import {
   runOnJS,
-  scrollTo,
-  useAnimatedRef,
   useAnimatedScrollHandler,
   useSharedValue,
 } from "react-native-reanimated";
@@ -34,8 +32,10 @@ let cache: CacheEntry | null = null;
  *
  * Pager sync runs on the UI thread: `scrollHandler` derives the active day
  * index inside a Reanimated worklet during the swipe itself (not at
- * momentum end) and only hops to JS when the index actually changes;
- * selector taps scroll via Reanimated's `scrollTo` on the same thread.
+ * momentum end) and only hops to JS when the index actually changes.
+ * Selector taps use the plain ScrollView `scrollTo` imperative API (the
+ * reliable direction; Reanimated's `scrollTo` on an animated ref proved
+ * flaky for tap-to-scroll).
  *
  * Memoization is handled by the React Compiler (experiments.reactCompiler).
  * The generation effect is written so that correctness never depends on
@@ -60,7 +60,7 @@ export function useMealPlan() {
     null,
   );
   const [selectedDay, setSelectedDay] = useState(0);
-  const pagerRef = useAnimatedRef<Animated.ScrollView>();
+  const pagerRef = useRef<ScrollView>(null);
   const lastScrolledIndex = useSharedValue(0);
   const { width } = useWindowDimensions();
 
@@ -126,11 +126,11 @@ export function useMealPlan() {
     },
   });
 
-  /** Day selector tap → scroll the pager (UI-thread scrollTo) */
+  /** Day selector tap → scroll the pager (imperative ScrollView API) */
   const selectDay = (index: number) => {
     setSelectedDay(index);
     lastScrolledIndex.value = index;
-    scrollTo(pagerRef, index * MEAL_PLAN.cardStride, 0, true);
+    pagerRef.current?.scrollTo({ x: index * MEAL_PLAN.cardStride, animated: true });
   };
 
   return {
