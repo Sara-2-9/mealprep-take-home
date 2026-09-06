@@ -1,6 +1,7 @@
 import "../global.css";
 import "../polyfills";
 import { useEffect } from "react";
+import { StyleSheet } from "react-native";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
@@ -33,15 +34,41 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
+      {/*
+        Transition glitch fix (iOS 26): the default native-stack push uses the
+        new card-style transition with rounded corners, and the native screen
+        view is transparent by default — so during the slide the underlying
+        screen flashes through the corner gaps. `simple_push` restores the
+        classic full-screen slide (no corner radius), and an opaque
+        `contentStyle` background per screen kills any residual transparency
+        flicker. The root view gets the same cream background as a last
+        safety net behind the whole stack.
+      */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "simple_push",
+          contentStyle: { backgroundColor: "#FDFFFB" },
+        }}
+      >
         <Stack.Screen name="index" />
         <Stack.Screen name="budget" />
         <Stack.Screen name="dietary-needs" />
         <Stack.Screen name="nutritional-goals" />
-        <Stack.Screen name="meal-plan" />
+        <Stack.Screen
+          name="meal-plan"
+          options={{ contentStyle: { backgroundColor: "#34C759" } }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#FDFFFB",
+  },
+});
