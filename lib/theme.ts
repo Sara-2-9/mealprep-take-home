@@ -55,9 +55,26 @@ export const MEAL_PLAN = {
   cardTop: 306,
   cardWidth: 337,
   cardHeight: 546,
+  cardRadius: 28,
   cardPadding: 24,
   cardGap: 28,
+  /** Horizontal pager: side peek (28) + gap between cards (12) → stride 349 */
+  cardPeek: 28,
+  cardStride: 337 + 12,
+  metaIconColor: "#3C3C43",
 } as const;
+
+/** Day labels in calendar order (the Figma file swaps Wed/Thu — we don't) */
+export const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export const WEEK_DAYS_FULL = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
 
 /** Progress fraction per step (LoadingBar component: 25 / 50 / 75 / 100) */
 export const STEP_PROGRESS = {

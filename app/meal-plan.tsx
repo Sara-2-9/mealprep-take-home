@@ -1,5 +1,208 @@
-import { ScreenPlaceholder } from "../components/ui/ScreenPlaceholder";
+import { useState } from "react";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import * as Haptics from "expo-haptics";
+import { DaySelector } from "../components/ui/DaySelector";
+import { MealPlanCard } from "../components/screens/MealPlanCard";
+import { MealPlanCardSkeleton } from "../components/screens/MealPlanCardSkeleton";
+import { useMealPlan } from "../hooks/useMealPlan";
+import { MEAL_PLAN, CONTENT_WIDTH, SCREEN_PADDING_X, WEEK_DAYS_FULL } from "../lib/theme";
 
+/**
+ * Screen 05 — Weekly meal plan. Green background, "Bon appetit!" title,
+ * estimated-cost card, day selector and a horizontal day-card pager.
+ * Final screen of the flow: no back button, no CTA.
+ */
 export default function MealPlanScreen() {
-  return <ScreenPlaceholder step="05" title="Weekly meal plan" />;
+  const insets = useSafeAreaInsets();
+  const {
+    status,
+    plan,
+    displayedCost,
+    selectedDay,
+    selectDay,
+    retry,
+    pagerRef,
+    onMomentumScrollEnd,
+    pagerPadding,
+  } = useMealPlan();
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top + (MEAL_PLAN.titleTop - 62) }]}>
+      <StatusBar style="dark" />
+
+      <View style={styles.column}>
+        <Text className="font-promo" style={styles.title}>
+          Bon appetit!
+        </Text>
+
+        <View style={styles.costCard}>
+          <Text className="font-promo" style={styles.costLabel}>
+            Est. cost
+          </Text>
+          <View style={styles.costRow}>
+            <Text className="font-promo" style={styles.costValue}>
+              €{Math.round(displayedCost)}
+            </Text>
+            <Text className="font-promo" style={styles.costSuffix}>
+              / week
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.dayRow}>
+          <DaySelector
+            selectedIndex={selectedDay}
+            onSelect={selectDay}
+            disabled={status !== "ready"}
+          />
+        </View>
+      </View>
+
+      <View style={styles.pagerArea}>
+        {status === "error" ? (
+          <View style={styles.errorWrap}>
+            <ErrorCard onRetry={retry} />
+          </View>
+        ) : (
+          <ScrollView
+            ref={pagerRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={MEAL_PLAN.cardStride}
+            decelerationRate="fast"
+            onMomentumScrollEnd={onMomentumScrollEnd}
+            scrollEnabled={status === "ready"}
+            contentContainerStyle={{
+              paddingHorizontal: pagerPadding,
+              gap: MEAL_PLAN.cardStride - MEAL_PLAN.cardWidth,
+            }}
+          >
+            {status === "ready" && plan
+              ? plan.days.map((day) => <MealPlanCard key={day.day} day={day} />)
+              : WEEK_DAYS_FULL.map((day) => <MealPlanCardSkeleton key={day} />)}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  );
 }
+
+function ErrorCard({ onRetry }: { onRetry: () => void }) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <View style={styles.errorCard}>
+      <Text className="font-promo-semibold" style={styles.errorTitle}>
+        Something went wrong
+      </Text>
+      <Text className="font-promo" style={styles.errorText}>
+        We couldn't generate your meal plan. Check your connection and try again.
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onRetry();
+        }}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
+        style={[styles.retryButton, pressed && { opacity: 0.85 }]}
+      >
+        <Text className="font-promo" style={styles.retryLabel}>
+          Try again
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#34C759",
+  },
+  column: {
+    width: CONTENT_WIDTH,
+    alignSelf: "center",
+    paddingHorizontal: 0,
+  },
+  title: {
+    fontSize: MEAL_PLAN.titleSize,
+    lineHeight: MEAL_PLAN.titleLineHeight,
+    color: "#FFFFFF",
+    textAlign: "center",
+  },
+  costCard: {
+    height: MEAL_PLAN.costCardHeight,
+    marginTop: MEAL_PLAN.costCardTop - MEAL_PLAN.titleTop - 56, // 12
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  costLabel: {
+    fontSize: 16,
+    lineHeight: 22.4,
+    color: "rgba(60,60,67,0.6)",
+  },
+  costRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  costValue: {
+    fontSize: 24,
+    lineHeight: 33.5,
+    color: "#000000",
+  },
+  costSuffix: {
+    fontSize: 16,
+    lineHeight: 22.4,
+    color: "#000000",
+  },
+  dayRow: {
+    marginTop: MEAL_PLAN.dayRowTop - MEAL_PLAN.costCardTop - MEAL_PLAN.costCardHeight, // 12
+  },
+  pagerArea: {
+    flex: 1,
+    marginTop: MEAL_PLAN.cardTop - MEAL_PLAN.dayRowTop - MEAL_PLAN.dayCellHeight, // 32
+  },
+  errorWrap: {
+    flex: 1,
+    paddingHorizontal: SCREEN_PADDING_X + 8,
+  },
+  errorCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: MEAL_PLAN.cardRadius,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: MEAL_PLAN.cardPadding,
+    gap: 12,
+  },
+  errorTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    color: "#000000",
+  },
+  errorText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "rgba(60,60,67,0.6)",
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 8,
+    backgroundColor: "#34C759",
+    borderRadius: 99,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  retryLabel: {
+    fontSize: 16,
+    lineHeight: 22.4,
+    color: "#FFFFFF",
+  },
+});
