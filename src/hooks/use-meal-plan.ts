@@ -9,9 +9,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useFlowStore } from "../state/flow-store";
 import { generateMealPlan } from "../lib/llm/client";
-import { pricePartialDay } from "../lib/llm/cost";
 import type { DayPlan, WeeklyPlan } from "../lib/meal-plan";
-import { MEAL_PLAN, WEEK_DAYS_FULL } from "../lib/theme";
+import { MEAL_PLAN } from "../lib/theme";
 
 export type MealPlanStatus = "loading" | "ready" | "error";
 
@@ -24,17 +23,14 @@ interface CacheEntry {
 /** Keeps the generated plan when navigating away and back within a session */
 let cache: CacheEntry | null = null;
 
-/** Progressive rendering: partial snapshots flush to state at ~20 fps max */
-const PARTIAL_FLUSH_MS = 50;
-
 /**
  * Business logic for screen 05 — weekly meal plan.
  * Orchestrates the LLM workflow (streaming generate → validate → retry) and
  * the day pager (selector ↔ horizontal scroll sync).
  *
- * While the plan streams in, `partialDays` exposes per-day DayPlans as soon
- * as each day's name has arrived (null = still pending → skeleton), so the
- * UI fills in day by day instead of waiting for the full response.
+ * While the plan streams in, `streamedDays` exposes each day as a COMPLETE,
+ * fully priced DayPlan the moment its element finishes (null = still
+ * pending → skeleton), so the UI fills in one card at a time.
  *
  * Pager sync runs on the UI thread: `scrollHandler` derives the active day
  * index inside a Reanimated worklet during the swipe itself (not at
@@ -60,34 +56,30 @@ export function useMealPlan() {
   const [totalCost, setTotalCost] = useState<number | null>(
     cached?.totalCost ?? null,
   );
-  const [partialDays, setPartialDays] = useState<(DayPlan | null)[] | null>(
+  const [streamedDays, setStreamedDays] = useState<(DayPlan | null)[] | null>(
     null,
   );
   const [selectedDay, setSelectedDay] = useState(0);
   const pagerRef = useAnimatedRef<Animated.ScrollView>();
   const lastScrolledIndex = useSharedValue(0);
-  const lastPartialFlush = useRef(0);
   const { width } = useWindowDimensions();
 
   useEffect(() => {
     if (status !== "loading") return;
     let cancelled = false;
-    setPartialDays(null);
+    setStreamedDays(null);
     generateMealPlan(
       { budget, dietaryNeeds, nutritionalGoals },
       {
-        onPartial: (partial) => {
-          // Throttle: the smoothed stream emits small snapshots at a steady
-          // cadence; re-rendering 7 cards per snapshot would waste frames.
-          // Trailing chunks are covered by the final setPlan below.
-          const now = Date.now();
-          if (cancelled || now - lastPartialFlush.current < PARTIAL_FLUSH_MS) {
-            return;
-          }
-          lastPartialFlush.current = now;
-          setPartialDays(
-            WEEK_DAYS_FULL.map((_, i) => pricePartialDay(partial.days?.[i])),
-          );
+        onDay: (day, index) => {
+          // Each element is a complete, priced day: drop it into its slot.
+          if (cancelled) return;
+          setStreamedDays((prev) => {
+            const base = prev ?? Array<DayPlan | null>(7).fill(null);
+            const next = [...base];
+            next[index] = day;
+            return next;
+          });
         },
       },
     )
@@ -100,13 +92,13 @@ export function useMealPlan() {
         };
         setPlan(result.plan);
         setTotalCost(result.totalCost);
-        setPartialDays(null);
+        setStreamedDays(null);
         setStatus("ready");
       })
       .catch((error) => {
         if (cancelled) return;
         console.warn("[useMealPlan] generation failed:", error);
-        setPartialDays(null);
+        setStreamedDays(null);
         setStatus("error");
       });
     return () => {
@@ -144,8 +136,8 @@ export function useMealPlan() {
   return {
     status,
     plan,
-    /** Per-day progressive plans while streaming (null entry = pending) */
-    partialDays,
+    /** Per-day complete plans while streaming (null entry = pending) */
+    streamedDays,
     /** Estimated weekly cost once ready, otherwise the selected budget */
     displayedCost: totalCost ?? budget,
     selectedDay,

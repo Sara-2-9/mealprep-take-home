@@ -22,7 +22,7 @@ export default function MealPlanScreen() {
   const {
     status,
     plan,
-    partialDays,
+    streamedDays,
     displayedCost,
     selectedDay,
     selectDay,
@@ -84,13 +84,13 @@ export default function MealPlanScreen() {
             }}
           >
             {/*
-              Progressive rendering: while the plan streams, each day shows
-              its (partially priced) card as soon as it arrives; days still
+              Per-day streaming: while the plan generates, each day renders
+              its complete card as soon as its element finishes; days still
               pending keep the skeleton.
             */}
             {status === "ready" && plan
               ? plan.days.map((day) => <MealPlanCard key={day.day} day={day} />)
-              : (partialDays ?? WEEK_DAYS_FULL.map(() => null)).map(
+              : (streamedDays ?? WEEK_DAYS_FULL.map(() => null)).map(
                   (dayPlan, index) =>
                     dayPlan ? (
                       <MealPlanCard key={dayPlan.day} day={dayPlan} />

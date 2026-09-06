@@ -1,7 +1,7 @@
 import { getProductById } from "../catalog";
 import type { Product } from "../types";
 import type { DayPlan, WeeklyPlan } from "../meal-plan";
-import type { LLMPlanMeal, LLMWeeklyPlan, PartialDayPlan } from "./schema";
+import type { LLMDayPlan, LLMPlanMeal, LLMWeeklyPlan } from "./schema";
 
 /**
  * Deterministic cost computation for LLM-generated plans.
@@ -54,6 +54,51 @@ export interface PricedPlan {
   unknownProductIds: string[];
 }
 
+export interface PricedDay {
+  /** App-facing day with computed pricePerServing */
+  day: DayPlan;
+  /** productIds referenced by the day but missing from the catalog */
+  unknownProductIds: string[];
+}
+
+/**
+ * Converts one raw LLM day into the app-facing DayPlan, computing
+ * pricePerServing = Σ(grams × €/kg) / servings. Ingredient names are not
+ * part of the model output (output slimming): they are resolved here from
+ * the catalog by productId. Used both per streamed element and per day of
+ * the complete plan.
+ */
+export function priceDay(llmDay: LLMDayPlan): PricedDay {
+  const unknown: string[] = [];
+  const ingredients = llmDay.meal.ingredients.map((ing) => {
+    const product = getProductById(ing.productId);
+    if (!product) {
+      unknown.push(ing.productId);
+    }
+    return {
+      productId: ing.productId,
+      name: product?.name ?? ing.productId,
+      amount: ing.amount,
+      grams: ing.grams,
+    };
+  });
+  const pricePerServing = round2(mealCost(llmDay.meal) / llmDay.meal.servings);
+  return {
+    day: {
+      day: llmDay.day,
+      meal: {
+        name: llmDay.meal.name,
+        prepTimeMinutes: llmDay.meal.prepTimeMinutes,
+        servings: llmDay.meal.servings,
+        pricePerServing,
+        ingredients,
+        steps: llmDay.meal.steps,
+      },
+    },
+    unknownProductIds: unknown,
+  };
+}
+
 /**
  * Converts raw LLM output into the app-facing WeeklyPlan, computing
  * pricePerServing = Σ(grams × €/kg) / servings for each meal.
@@ -61,69 +106,9 @@ export interface PricedPlan {
 export function priceWeeklyPlan(llmPlan: LLMWeeklyPlan): PricedPlan {
   const unknown = new Set<string>();
   const days = llmPlan.days.map((day) => {
-    const ingredients = day.meal.ingredients.map((ing) => {
-      const product = getProductById(ing.productId);
-      if (!product) {
-        unknown.add(ing.productId);
-      }
-      return {
-        productId: ing.productId,
-        // Names are not part of the model output (output slimming):
-        // resolved here from the catalog by productId.
-        name: product?.name ?? ing.productId,
-        amount: ing.amount,
-        grams: ing.grams,
-      };
-    });
-    const pricePerServing = round2(mealCost(day.meal) / day.meal.servings);
-    return {
-      day: day.day,
-      meal: {
-        name: day.meal.name,
-        prepTimeMinutes: day.meal.prepTimeMinutes,
-        servings: day.meal.servings,
-        pricePerServing,
-        ingredients,
-        steps: day.meal.steps,
-      },
-    };
+    const priced = priceDay(day);
+    for (const id of priced.unknownProductIds) unknown.add(id);
+    return priced.day;
   });
   return { plan: { days }, unknownProductIds: [...unknown] };
-}
-
-/**
- * Progressive rendering: converts a partially streamed day into the
- * app-facing DayPlan, tolerating fields that haven't arrived yet.
- * Returns null until the day name and meal name have both streamed in —
- * before that, the UI keeps showing the skeleton for this day.
- */
-export function pricePartialDay(day: PartialDayPlan | undefined): DayPlan | null {
-  const meal = day?.meal;
-  if (!day?.day || !meal?.name) return null;
-  const mealName = meal.name;
-  const ingredients = (meal.ingredients ?? [])
-    .filter((ing): ing is NonNullable<typeof ing> => Boolean(ing?.productId))
-    .map((ing) => ({
-      productId: ing.productId as string,
-      name: getProductById(ing.productId as string)?.name ?? "",
-      amount: ing.amount ?? "",
-      grams: ing.grams ?? 0,
-    }));
-  const servings = meal.servings ?? 2;
-  const total = ingredients.reduce(
-    (sum, ing) =>
-      sum + (ing.grams > 0 ? (ingredientCost(ing.productId, ing.grams) ?? 0) : 0),
-    0,
-  );
-  return {
-    day: day.day,
-    meal: {
-      name: mealName,
-      prepTimeMinutes: meal.prepTimeMinutes ?? 0,
-      servings,
-      pricePerServing: round2(total / servings),
-      ingredients,
-      steps: (meal.steps ?? []).filter((s): s is string => Boolean(s)),
-    },
-  };
 }

@@ -4,11 +4,10 @@ import {
   generateMealPlan,
   MealPlanError,
   validatePlan,
-  type PartialWeeklyPlan,
   type PlanGenerator,
   type PlanStreamer,
 } from "./client";
-import { weeklyCost } from "../meal-plan";
+import { weeklyCost, type DayPlan } from "../meal-plan";
 import { makeValidPlan } from "./schema.test";
 import type { LLMWeeklyPlan } from "./schema";
 
@@ -39,7 +38,7 @@ describe("generateMealPlan", () => {
     const calls: ModelMessage[][] = [];
     const generate: PlanGenerator = async (messages) => {
       calls.push(messages);
-      return VALID();
+      return VALID().days;
     };
     const result = await generateMealPlan(REQUEST, { generate });
     expect(calls).toHaveLength(1);
@@ -54,7 +53,7 @@ describe("generateMealPlan", () => {
     let attempt = 0;
     const generate: PlanGenerator = async (messages) => {
       seen.push(messages);
-      return ++attempt === 1 ? overBudgetPlan() : VALID();
+      return ++attempt === 1 ? overBudgetPlan().days : VALID().days;
     };
     const result = await generateMealPlan(REQUEST, { generate });
     expect(seen).toHaveLength(2);
@@ -70,7 +69,7 @@ describe("generateMealPlan", () => {
     const seen: ModelMessage[][] = [];
     const generate: PlanGenerator = async (messages) => {
       seen.push(messages);
-      return planWithUnknownId();
+      return planWithUnknownId().days;
     };
     const error = await generateMealPlan(REQUEST, { generate }).catch((e) => e);
     expect(seen).toHaveLength(2); // one retry, then give up
@@ -78,6 +77,14 @@ describe("generateMealPlan", () => {
     expect(error.code).toBe("invalid-plan");
     expect(error.message).toContain("unknown productIds");
     expect(error.message).toContain("0000000000000");
+  });
+
+  test("rejects plans that don't contain exactly 7 days", async () => {
+    const generate: PlanGenerator = async () => VALID().days.slice(0, 6);
+    const error = await generateMealPlan(REQUEST, { generate }).catch((e) => e);
+    expect(error).toBeInstanceOf(MealPlanError);
+    expect(error.code).toBe("invalid-plan");
+    expect(error.message).toContain("exactly 7");
   });
 
   test("throws MealPlanError(missing-key) without an API key", async () => {
@@ -98,64 +105,60 @@ describe("generateMealPlan", () => {
   });
 });
 
-describe("generateMealPlan (streaming)", () => {
-  /** Fake streamer: emits progressive partials, then resolves the full plan. */
-  function fakeStreamer(partialsPerAttempt = 2): {
-    stream: PlanStreamer;
-    calls: ModelMessage[][];
-  } {
+describe("generateMealPlan (streaming, per-day elements)", () => {
+  /**
+   * Fake streamer mirroring Output.array's elementStream: each yielded item
+   * is a COMPLETE, schema-valid day; output resolves the full array.
+   */
+  function fakeStreamer(): { stream: PlanStreamer; calls: ModelMessage[][] } {
     const calls: ModelMessage[][] = [];
     return {
       calls,
       stream: (messages) => {
         calls.push(messages);
         return {
-          partials: (async function* () {
-            for (let i = 0; i < partialsPerAttempt; i++) {
-              yield {
-                days: VALID()
-                  .days.slice(0, i + 1)
-                  .map((d) => ({ day: d.day })),
-              };
-            }
+          days: (async function* () {
+            for (const day of VALID().days) yield day;
           })(),
-          output: Promise.resolve(VALID()),
+          output: Promise.resolve(VALID().days),
         };
       },
     };
   }
 
-  test("forwards partial snapshots to onPartial, then returns the full plan", async () => {
-    const { stream, calls } = fakeStreamer(3);
-    const partials: PartialWeeklyPlan[] = [];
+  test("emits each complete day via onDay, then returns the full plan", async () => {
+    const { stream, calls } = fakeStreamer();
+    const received: { day: DayPlan; index: number }[] = [];
     const result = await generateMealPlan(REQUEST, {
       stream,
-      onPartial: (p) => partials.push(p),
+      onDay: (day, index) => received.push({ day, index }),
     });
     expect(calls).toHaveLength(1);
-    expect(partials).toHaveLength(3);
-    expect(partials[0].days).toHaveLength(1);
-    expect(partials[2].days).toHaveLength(3);
+    expect(received).toHaveLength(7);
+    expect(received.map((r) => r.index)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    // Each streamed day is complete and priced — renderable as a full card
+    expect(received[0].day.meal.pricePerServing).toBeGreaterThan(0);
+    expect(received[0].day.meal.ingredients[0].name.length).toBeGreaterThan(0);
     expect(result.plan.days).toHaveLength(7);
     expect(result.totalCost).toBeCloseTo(round7(), 2);
   });
 
-  test("works without an onPartial callback", async () => {
-    const { stream } = fakeStreamer(2);
+  test("works without an onDay callback", async () => {
+    const { stream } = fakeStreamer();
     const result = await generateMealPlan(REQUEST, { stream });
     expect(result.plan.days).toHaveLength(7);
   });
 
   test("maps streamer failures to MealPlanError", async () => {
     const stream: PlanStreamer = () => ({
-      partials: (async function* () {
-        yield {} as PartialWeeklyPlan;
+      days: (async function* () {
+        yield VALID().days[0]; // one complete day before the failure
       })(),
       output: Promise.reject(new MealPlanError("Network unreachable", "network")),
     });
     const error = await generateMealPlan(REQUEST, {
       stream,
-      onPartial: () => {},
+      onDay: () => {},
     }).catch((e) => e);
     expect(error).toBeInstanceOf(MealPlanError);
     expect(error.code).toBe("network");
@@ -164,7 +167,7 @@ describe("generateMealPlan (streaming)", () => {
 
 describe("validatePlan", () => {
   test("accepts a priced plan under budget", () => {
-    const generate: PlanGenerator = async () => VALID();
+    const generate: PlanGenerator = async () => VALID().days;
     return generateMealPlan(REQUEST, { generate }).then(({ plan }) => {
       expect(validatePlan(plan, 80)).toBeNull();
     });
@@ -173,9 +176,9 @@ describe("validatePlan", () => {
   test("rejects duplicate days", () => {
     return generateMealPlan(REQUEST, {
       generate: async () => {
-        const plan = VALID();
-        plan.days[1].day = "Monday";
-        return plan;
+        const days = VALID().days;
+        days[1].day = "Monday";
+        return days;
       },
     }).then(
       () => {
@@ -189,7 +192,7 @@ describe("validatePlan", () => {
 
   test("weeklyCost uses computed prices, not model claims", async () => {
     const { plan, totalCost } = await generateMealPlan(REQUEST, {
-      generate: async () => VALID(),
+      generate: async () => VALID().days,
     });
     expect(totalCost).toBeCloseTo(weeklyCost(plan), 5);
   });

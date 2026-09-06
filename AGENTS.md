@@ -62,11 +62,12 @@ file names are kebab-case, component/function exports stay PascalCase.
 - `src/lib/llm/prompt.ts` — messages builder; basket lines include €/kg, macros
   per 100g, Nutri-Score and allergens so the model can reason about goals.
 - `src/lib/llm/cost.ts` — deterministic pricing from catalog €/kg × grams
-  (`priceWeeklyPlan` → app-facing `WeeklyPlan` with computed `pricePerServing`);
-  `pricePartialDay` maps partially streamed days for progressive rendering.
-- `src/lib/llm/client.ts` — default path is `streamText` + `Output.object` with
-  `expo/fetch` (Hermes streaming): partial snapshots flow to screen 05 via
-  `onPartial` and days render as they arrive. Injectable `generate` (one-shot)
+  (`priceDay` per single day, `priceWeeklyPlan` for the whole plan →
+  app-facing `WeeklyPlan` with computed `pricePerServing`).
+- `src/lib/llm/client.ts` — default path is `streamText` + `Output.array` with
+  `expo/fetch` (Hermes streaming): `elementStream` emits each day ONLY when
+  complete and schema-validated, so screen 05 renders a full card per day via
+  `onDay` (skeletons for pending days). Injectable `generate` (one-shot)
   and `stream` for tests; domain validation (catalog ids, real budget) with
   one feedback retry. Model via `EXPO_PUBLIC_MEALPLAN_MODEL` (default
   `gpt-4o-mini`); provider swap = one line (`createOpenAI` → other provider).

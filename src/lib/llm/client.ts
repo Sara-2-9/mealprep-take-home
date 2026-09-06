@@ -3,15 +3,18 @@ import {
   generateText,
   NoOutputGeneratedError,
   Output,
-  smoothStream,
   streamText,
-  type DeepPartial,
   type ModelMessage,
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { weeklyCost, type WeeklyPlan } from "../meal-plan";
-import { priceWeeklyPlan, round2 } from "./cost";
-import { weeklyPlanSchema, type LLMWeeklyPlan } from "./schema";
+import { weeklyCost, type DayPlan, type WeeklyPlan } from "../meal-plan";
+import { priceDay, priceWeeklyPlan, round2 } from "./cost";
+import {
+  dayPlanSchema,
+  weeklyPlanSchema,
+  type LLMDayPlan,
+  type LLMWeeklyPlan,
+} from "./schema";
 import {
   buildMealPlanMessages,
   buildRetryMessage,
@@ -20,13 +23,15 @@ import {
 
 /**
  * Meal-plan LLM workflow on the Vercel AI SDK (Phase 3, step 22; streaming
- * added in the latency pass).
+ * added in the latency pass, switched to per-day elements after).
  *
- * Default path: `streamText` + `Output.object` — partial plan snapshots are
- * forwarded via `onPartial` so screen 05 can render days progressively while
- * the model is still generating (perceived-latency win; the full wait is
- * dominated by output-token generation). On Hermes, streaming requires
- * `expo/fetch` (RN's default fetch buffers the whole response).
+ * Default path: `streamText` + `Output.array` — the model generates a bare
+ * JSON array of 7 day objects and `elementStream` emits each day ONLY when
+ * it is complete and schema-validated. Screen 05 renders a full card per
+ * element (skeletons for the days still pending), so the UI fills in one
+ * day at a time instead of flickering with token-level partial objects.
+ * On Hermes, streaming requires `expo/fetch` (RN's default fetch buffers
+ * the whole response).
  *
  * The provider is swappable by changing one line (or the
  * EXPO_PUBLIC_MEALPLAN_MODEL env var). Domain validation (catalog ids, real
@@ -48,21 +53,19 @@ export class MealPlanError extends Error {
 }
 
 /**
- * One LLM round-trip: messages in, schema-validated plan out.
- * Injectable so tests can drive the retry/validation loop without network.
+ * One LLM round-trip: messages in, schema-validated days out (Monday…Sunday
+ * order, as a bare array). Injectable so tests can drive the
+ * retry/validation loop without network.
  */
 export type PlanGenerator = (
   messages: ModelMessage[],
-) => Promise<LLMWeeklyPlan>;
-
-/** Progressive plan shape while streaming (every field may be missing). */
-export type PartialWeeklyPlan = DeepPartial<LLMWeeklyPlan>;
+) => Promise<LLMDayPlan[]>;
 
 export interface PlanStream {
-  /** Deep-partial plan snapshots as tokens arrive. */
-  partials: AsyncIterable<PartialWeeklyPlan>;
-  /** Resolves with the complete, schema-validated plan. */
-  output: Promise<LLMWeeklyPlan>;
+  /** Complete, schema-validated day elements, emitted as each day finishes. */
+  days: AsyncIterable<LLMDayPlan>;
+  /** Resolves with the complete, schema-validated day array. */
+  output: Promise<LLMDayPlan[]>;
 }
 
 /**
@@ -90,11 +93,13 @@ function toMealPlanError(error: unknown): MealPlanError {
 }
 
 function outputSpec() {
-  return Output.object({
-    schema: weeklyPlanSchema,
+  return Output.array({
+    element: dayPlanSchema,
+    minItems: 7,
+    maxItems: 7,
     name: "weekly_meal_plan",
     description:
-      "7-day dinner plan built exclusively from the provided supermarket catalog",
+      "7-day dinner plan (Monday…Sunday) built exclusively from the provided supermarket catalog",
   });
 }
 
@@ -153,25 +158,11 @@ function createOpenAIStreamer(apiKey: string): PlanStreamer {
       output: outputSpec(),
       temperature: 0.7,
       maxRetries: 2,
-      // Structured-output deltas need JSON-aware smoothing: smoothStream's
-      // default "word" mode waits for /\S+\s+/ — but compact JSON structure
-      // has almost no whitespace, so whole segments accumulated into
-      // macro-blocks. This regex releases a chunk at every structural char
-      // (object/array/colon/quote boundaries) and at whitespace, so prose
-      // flows word-by-word and structure char-by-char at a steady cadence
-      // (see ai-sdk.dev/docs/reference/ai-sdk-core/smooth-stream). Guarded:
-      // the transform needs globalThis.TransformStream.
-      ...(typeof TransformStream !== "undefined"
-        ? {
-            experimental_transform: smoothStream({
-              delayInMs: 8,
-              chunking: /[{}\[\],:"]|\s+/,
-            }),
-          }
-        : {}),
     });
     return {
-      partials: result.partialOutputStream,
+      // elementStream: each item is a COMPLETE day, already validated
+      // against dayPlanSchema — no token-level partials to smooth.
+      days: result.elementStream,
       output: Promise.resolve(result.output).catch((error: unknown) => {
         throw toMealPlanError(error);
       }),
@@ -204,15 +195,15 @@ export interface GenerateMealPlanOptions {
   generate?: PlanGenerator;
   /** Streaming generator — tests inject this; defaults to OpenAI + expo/fetch. */
   stream?: PlanStreamer;
-  /** Called with deep-partial plan snapshots as tokens stream in. */
-  onPartial?: (partial: PartialWeeklyPlan) => void;
+  /** Called as each day finishes streaming: priced DayPlan + index (0–6). */
+  onDay?: (day: DayPlan, index: number) => void;
 }
 
 export async function generateMealPlan(
   request: MealPlanRequest,
   options: GenerateMealPlanOptions = {},
 ): Promise<MealPlanResult> {
-  const { generate, onPartial } = options;
+  const { generate, onDay } = options;
   let stream = options.stream;
   if (!generate && !stream) {
     const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
@@ -224,37 +215,47 @@ export async function generateMealPlan(
 
   const messages: ModelMessage[] = [...buildMealPlanMessages(request)];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let llmPlan: LLMWeeklyPlan;
+    let llmDays: LLMDayPlan[];
     try {
       if (generate) {
-        llmPlan = await generate(messages);
+        llmDays = await generate(messages);
       } else {
-        const { partials, output } = stream!(messages);
-        if (onPartial) {
-          for await (const partial of partials) {
-            onPartial(partial);
-          }
+        const { days, output } = stream!(messages);
+        // Forward each COMPLETE day as it finishes (priced, so the card is
+        // fully renderable on arrival). On retry the elements re-emit and
+        // simply overwrite the same indices.
+        let index = 0;
+        for await (const element of days) {
+          if (onDay) onDay(priceDay(element).day, index);
+          index++;
         }
-        llmPlan = await output;
+        llmDays = await output;
       }
     } catch (error) {
       throw toMealPlanError(error);
     }
 
-    const { plan, unknownProductIds } = priceWeeklyPlan(llmPlan);
-    const rejection =
-      unknownProductIds.length > 0
-        ? `unknown productIds: ${unknownProductIds.join(", ")} — ` +
+    // Defense in depth: the SDK enforces min/max 7 items on the wire, but
+    // injected generators are held to the same contract explicitly.
+    const parsed = weeklyPlanSchema.safeParse({ days: llmDays });
+    const priced = parsed.success ? priceWeeklyPlan(parsed.data) : null;
+    const rejection = !priced
+      ? "plan must contain exactly 7 valid days (Monday…Sunday)"
+      : priced.unknownProductIds.length > 0
+        ? `unknown productIds: ${priced.unknownProductIds.join(", ")} — ` +
           "use only ids from the catalog basket"
-        : validatePlan(plan, request.budget);
-    if (!rejection) {
-      return { plan, totalCost: round2(weeklyCost(plan)) };
+        : validatePlan(priced.plan, request.budget);
+    if (!rejection && priced) {
+      return {
+        plan: priced.plan,
+        totalCost: round2(weeklyCost(priced.plan)),
+      };
     }
     if (attempt === MAX_ATTEMPTS) {
       throw new MealPlanError(`Invalid plan: ${rejection}`, "invalid-plan");
     }
-    messages.push({ role: "assistant", content: JSON.stringify(llmPlan) });
-    messages.push(buildRetryMessage(rejection));
+    messages.push({ role: "assistant", content: JSON.stringify(llmDays) });
+    messages.push(buildRetryMessage(rejection!));
   }
   // Unreachable — loop either returns or throws
   throw new MealPlanError("Unexpected workflow state", "invalid-plan");

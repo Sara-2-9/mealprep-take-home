@@ -1,10 +1,10 @@
 import { z } from "zod";
-import type { DeepPartial } from "ai";
 
 /**
  * Zod schema for the LLM-generated weekly meal plan — the single source of
- * truth for the structured output. Passed to the AI SDK `Output.object()`
- * specification, which converts it to the provider's native structured-output
+ * truth for the structured output. Passed to the AI SDK `Output.array()`
+ * specification (`dayPlanSchema` as the element schema), which converts it to
+ * the provider's native structured-output
  * format (OpenAI strict JSON schema) and validates the response at runtime.
  *
  * The model declares quantities in grams; the app recomputes prices
@@ -61,9 +61,3 @@ export type LLMPlanIngredient = z.infer<typeof planIngredientSchema>;
 export type LLMPlanMeal = z.infer<typeof planMealSchema>;
 export type LLMDayPlan = z.infer<typeof dayPlanSchema>;
 export type LLMWeeklyPlan = z.infer<typeof weeklyPlanSchema>;
-
-/**
- * Shape of a day while the plan is still streaming: every field may be
- * missing until its tokens arrive. Used for progressive rendering.
- */
-export type PartialDayPlan = DeepPartial<LLMDayPlan>;

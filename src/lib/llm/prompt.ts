@@ -72,7 +72,8 @@ export function buildMealPlanMessages({
   const system = [
     "You are the meal-planning engine of MealPrep, an app that builds weekly",
     "dinner plans from a real supermarket catalog (Esselunga, Italy).",
-    "You reply ONLY with data matching the provided schema.",
+    "You reply ONLY with a JSON array of day objects matching the provided",
+    "schema — no wrapper object, no prose.",
     "",
     "Rules:",
     "- Exactly 7 days (Monday…Sunday), one dinner recipe per day.",

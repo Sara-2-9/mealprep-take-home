@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ingredientCost,
   mealCost,
-  pricePartialDay,
+  priceDay,
   priceWeeklyPlan,
   round2,
 } from "./cost";
@@ -72,38 +72,28 @@ describe("mealCost / priceWeeklyPlan", () => {
   });
 });
 
-describe("pricePartialDay (progressive streaming)", () => {
-  test("returns null until day and meal name have streamed", () => {
-    expect(pricePartialDay(undefined)).toBeNull();
-    expect(pricePartialDay({})).toBeNull();
-    expect(pricePartialDay({ day: "Monday" })).toBeNull();
-    expect(pricePartialDay({ day: "Monday", meal: {} })).toBeNull();
-  });
-
-  test("maps a partially streamed day with catalog names and partial cost", () => {
-    const partial = pricePartialDay({
-      day: "Monday",
-      meal: {
-        name: "Penne al pomodoro",
-        // prepTimeMinutes/servings not streamed yet
-        ingredients: [
-          { productId: "8005121050271", grams: 160 }, // amount missing
-          { productId: "8003170094871" }, // grams missing → not priced
-        ],
-        steps: ["Boil pasta", undefined],
-      },
-    });
-    expect(partial).not.toBeNull();
-    expect(partial!.day).toBe("Monday");
-    expect(partial!.meal.name).toBe("Penne al pomodoro");
-    expect(partial!.meal.servings).toBe(2); // default
-    expect(partial!.meal.ingredients[0].name.length).toBeGreaterThan(0);
-    expect(partial!.meal.ingredients[0].amount).toBe("");
-    // Only the first ingredient contributes: 160g × 1.78€/kg / 2 servings
-    expect(partial!.meal.pricePerServing).toBeCloseTo(
-      round2(((160 / 1000) * 1.78) / 2),
+describe("priceDay (per streamed element)", () => {
+  test("maps a complete day with catalog names and computed pricePerServing", () => {
+    const { day, unknownProductIds } = priceDay(makeValidPlan().days[0]);
+    expect(unknownProductIds).toEqual([]);
+    expect(day.day).toBe("Monday");
+    expect(day.meal.name).toBe("Pasta dish Monday");
+    expect(day.meal.servings).toBe(2);
+    // Names are not in the model output — they come from the catalog
+    expect(day.meal.ingredients[0].name.length).toBeGreaterThan(0);
+    // penne 160g × 1.78€/kg + eggs 110g × 3.59€/kg, per 2 servings
+    const expectedMealCost = (160 / 1000) * 1.78 + (110 / 1000) * 3.59;
+    expect(day.meal.pricePerServing).toBeCloseTo(
+      round2(expectedMealCost / 2),
       5,
     );
-    expect(partial!.meal.steps).toEqual(["Boil pasta"]);
+  });
+
+  test("reports unknown productIds (name falls back to the id)", () => {
+    const llmDay = makeValidPlan().days[0];
+    llmDay.meal.ingredients[0].productId = "0000000000000";
+    const { day, unknownProductIds } = priceDay(llmDay);
+    expect(unknownProductIds).toEqual(["0000000000000"]);
+    expect(day.meal.ingredients[0].name).toBe("0000000000000");
   });
 });
