@@ -2,8 +2,8 @@
  * One-shot real-generation smoke test (NOT committed to CI — uses the real
  * OpenAI key from .env). Run with: bun scripts/e2e-generation.ts
  */
-import { generateMealPlan } from "../lib/llm/client";
-import { weeklyCost } from "../lib/mealPlan";
+import { generateMealPlan } from "../src/lib/llm/client";
+import { weeklyCost } from "../src/lib/meal-plan";
 
 const request = {
   budget: 60,

@@ -1,9 +1,9 @@
 import { View, StyleSheet } from "react-native";
-import { ScreenContainer } from "../components/ui/ScreenContainer";
-import { FlowHeader } from "../components/ui/FlowHeader";
-import { OptionCard } from "../components/ui/OptionCard";
-import { CTAButton } from "../components/ui/CTAButton";
-import { useNutritionalGoals } from "../hooks/useNutritionalGoals";
+import { ScreenContainer } from "../components/ui/screen-container";
+import { FlowHeader } from "../components/ui/flow-header";
+import { OptionCard } from "../components/ui/option-card";
+import { CTAButton } from "../components/ui/cta-button";
+import { useNutritionalGoals } from "../hooks/use-nutritional-goals";
 import { STEP_PROGRESS, OPTION_GRID } from "../lib/theme";
 
 /**

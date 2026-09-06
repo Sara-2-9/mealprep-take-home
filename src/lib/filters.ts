@@ -1,6 +1,6 @@
 import { getCatalog } from "./catalog";
 import type { Product } from "./types";
-import type { DietaryNeed, NutritionalGoal } from "../state/flowStore";
+import type { DietaryNeed, NutritionalGoal } from "../state/flow-store";
 
 /**
  * Catalog filter pipeline (Phase 3, step 20):

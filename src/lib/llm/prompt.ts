@@ -1,7 +1,7 @@
 import type { ModelMessage } from "ai";
 import { buildPromptBasket } from "../filters";
 import type { Product } from "../types";
-import type { DietaryNeed, NutritionalGoal } from "../../state/flowStore";
+import type { DietaryNeed, NutritionalGoal } from "../../state/flow-store";
 
 /**
  * Prompt construction for the meal-plan LLM workflow.

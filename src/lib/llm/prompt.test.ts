@@ -42,7 +42,7 @@ describe("buildMealPlanMessages", () => {
   });
 
   test('collapses "none" and empty selections to "none"', () => {
-    const cases: import("../../state/flowStore").DietaryNeed[][] = [
+    const cases: import("../../state/flow-store").DietaryNeed[][] = [
       [],
       ["none"],
     ];

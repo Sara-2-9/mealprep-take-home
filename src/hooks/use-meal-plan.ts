@@ -5,9 +5,9 @@ import {
   type NativeSyntheticEvent,
   type ScrollView,
 } from "react-native";
-import { useFlowStore } from "../state/flowStore";
+import { useFlowStore } from "../state/flow-store";
 import { generateMealPlan } from "../lib/llm/client";
-import type { WeeklyPlan } from "../lib/mealPlan";
+import type { WeeklyPlan } from "../lib/meal-plan";
 import { MEAL_PLAN } from "../lib/theme";
 
 export type MealPlanStatus = "loading" | "ready" | "error";

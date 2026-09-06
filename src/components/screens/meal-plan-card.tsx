@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { Animated, View, Text, StyleSheet } from "react-native";
-import type { DayPlan } from "../../lib/mealPlan";
+import type { DayPlan } from "../../lib/meal-plan";
 import { MEAL_PLAN } from "../../lib/theme";
-import { ClockIcon, ServingsIcon, CashIcon } from "../ui/MetaIcons";
+import { ClockIcon, ServingsIcon, CashIcon } from "../ui/meta-icons";
 
 interface MealPlanCardProps {
   day: DayPlan;

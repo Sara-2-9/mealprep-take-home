@@ -10,7 +10,7 @@ import {
   BUDGET_MIN,
   BUDGET_MAX,
   BUDGET_STEP,
-} from "../../state/flowStore";
+} from "../../state/flow-store";
 
 const TRACK_WIDTH = 345;
 const TRACK_HEIGHT = 16;

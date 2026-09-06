@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet } from "react-native";
-import { ScreenContainer } from "../components/ui/ScreenContainer";
-import { FlowHeader } from "../components/ui/FlowHeader";
-import { BudgetSlider } from "../components/ui/BudgetSlider";
-import { BudgetValue } from "../components/ui/BudgetValue";
-import { CTAButton } from "../components/ui/CTAButton";
-import { useBudgetSelection } from "../hooks/useBudgetSelection";
+import { ScreenContainer } from "../components/ui/screen-container";
+import { FlowHeader } from "../components/ui/flow-header";
+import { BudgetSlider } from "../components/ui/budget-slider";
+import { BudgetValue } from "../components/ui/budget-value";
+import { CTAButton } from "../components/ui/cta-button";
+import { useBudgetSelection } from "../hooks/use-budget-selection";
 import { STEP_PROGRESS } from "../lib/theme";
 
 /**

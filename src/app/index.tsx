@@ -9,8 +9,8 @@ import Animated, {
   withDelay,
   Easing,
 } from "react-native-reanimated";
-import { ScreenContainer } from "../components/ui/ScreenContainer";
-import { CTAButton } from "../components/ui/CTAButton";
+import { ScreenContainer } from "../components/ui/screen-container";
+import { CTAButton } from "../components/ui/cta-button";
 
 /**
  * Screen 01 — Lander. Pixel-perfect shell; the central assets are our creative
@@ -71,7 +71,7 @@ export default function LanderScreen() {
           <FloatingEmoji key={e.char} {...e} />
         ))}
         <Image
-          source={require("../assets/images/lander-hero.png")}
+          source={require("../../assets/images/lander-hero.png")}
           style={styles.hero}
           resizeMode="cover"
         />

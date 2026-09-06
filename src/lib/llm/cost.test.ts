@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ingredientCost, mealCost, priceWeeklyPlan, round2 } from "./cost";
 import { makeValidPlan } from "./schema.test";
-import { weeklyCost } from "../mealPlan";
+import { weeklyCost } from "../meal-plan";
 
 // Real catalog anchors (data/product_catalog_en.json):
 //   3560070492497  ground beef,  15.59 €/kg, pack 15.59 €

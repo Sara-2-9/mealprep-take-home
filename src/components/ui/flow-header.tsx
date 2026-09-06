@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
-import { BackButton } from "./BackButton";
-import { ProgressBar } from "./ProgressBar";
+import { BackButton } from "./back-button";
+import { ProgressBar } from "./progress-bar";
 import { HEADER, CONTENT_WIDTH } from "../../lib/theme";
 
 interface FlowHeaderProps {

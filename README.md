@@ -6,6 +6,8 @@ Blackboard Mobile Software Engineer take-home.
 ## Stack
 
 - **Expo SDK 57** + Expo Router (TypeScript strict)
+- **React Compiler** (`experiments.reactCompiler`) — automatic memoization,
+  no manual `memo`/`useCallback`/`useMemo`
 - **NativeWind** (Tailwind for RN) — design tokens mapped from Figma
 - **Zustand** — flow state (budget, dietary needs, nutritional goals)
 - **Reanimated + Gesture Handler** — animations and custom slider
@@ -14,18 +16,22 @@ Blackboard Mobile Software Engineer take-home.
 ## Architecture
 
 Custom-hook–driven, atomic UI: screens are thin composition layers;
-all business logic lives in typed hooks (`hooks/`) and modules (`lib/`).
+all business logic lives in typed hooks (`src/hooks/`) and modules (`src/lib/`).
+Application code lives under `src/` (Expo folder-structure best practices);
+file names are kebab-case, component exports stay PascalCase.
 
 ```
-app/          # Expo Router screens (presentation only)
-components/
-  ui/         # atomic, reusable UI primitives
-  screens/    # screen-specific composed components
-hooks/        # business logic hooks
-lib/          # catalog, filters, llm, theme (design tokens)
-state/        # Zustand flow store
-data/         # product_catalog_en.json (3,295 Esselunga products)
-assets/fonts/ # Promo font family
+src/
+  app/          # Expo Router screens (presentation only)
+  components/
+    ui/         # atomic, reusable UI primitives
+    screens/    # screen-specific composed components
+  hooks/        # business logic hooks
+  lib/          # catalog, filters, llm, theme (design tokens)
+  state/        # Zustand flow store
+  data/         # product_catalog_en.json (3,295 Esselunga products)
+  polyfills.ts  # Hermes polyfills for the Vercel AI SDK
+assets/fonts/   # Promo font family
 ```
 
 ## Setup

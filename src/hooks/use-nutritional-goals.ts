@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useFlowStore, type NutritionalGoal } from "../state/flowStore";
+import { useFlowStore, type NutritionalGoal } from "../state/flow-store";
 
 export interface GoalOption {
   id: NutritionalGoal;

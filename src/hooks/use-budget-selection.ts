@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useFlowStore } from "../state/flowStore";
+import { useFlowStore } from "../state/flow-store";
 
 /**
  * Business logic for screen 02 — weekly budget selection.

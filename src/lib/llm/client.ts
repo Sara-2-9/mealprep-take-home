@@ -6,7 +6,7 @@ import {
   type ModelMessage,
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { weeklyCost, type WeeklyPlan } from "../mealPlan";
+import { weeklyCost, type WeeklyPlan } from "../meal-plan";
 import { priceWeeklyPlan, round2 } from "./cost";
 import { weeklyPlanSchema, type LLMWeeklyPlan } from "./schema";
 import {

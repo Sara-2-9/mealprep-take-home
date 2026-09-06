@@ -6,7 +6,7 @@ import {
   validatePlan,
   type PlanGenerator,
 } from "./client";
-import { weeklyCost } from "../mealPlan";
+import { weeklyCost } from "../meal-plan";
 import { makeValidPlan } from "./schema.test";
 import type { LLMWeeklyPlan } from "./schema";
 

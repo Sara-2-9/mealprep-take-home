@@ -3,10 +3,10 @@ import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
-import { DaySelector } from "../components/ui/DaySelector";
-import { MealPlanCard } from "../components/screens/MealPlanCard";
-import { MealPlanCardSkeleton } from "../components/screens/MealPlanCardSkeleton";
-import { useMealPlan } from "../hooks/useMealPlan";
+import { DaySelector } from "../components/ui/day-selector";
+import { MealPlanCard } from "../components/screens/meal-plan-card";
+import { MealPlanCardSkeleton } from "../components/screens/meal-plan-card-skeleton";
+import { useMealPlan } from "../hooks/use-meal-plan";
 import { MEAL_PLAN, CONTENT_WIDTH, SCREEN_PADDING_X, WEEK_DAYS_FULL } from "../lib/theme";
 
 /**

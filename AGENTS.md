@@ -31,6 +31,9 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
 - Expo SDK 57 + Expo Router, React Native 0.86, React 19, TypeScript strict
 - Bun 1.4 as package manager/runtime — always `bun install`, never npm
 - NativeWind v4 (Tailwind) for utilities; exact Figma px values via StyleSheet + tokens
+- **React Compiler** enabled (`experiments.reactCompiler` in app.json +
+  `babel-plugin-react-compiler`): never add manual `React.memo` / `useCallback` /
+  `useMemo` — the compiler memoizes automatically
 - Reanimated 4 for animations, Gesture Handler for the budget slider, Zustand for flow state
 - **Vercel AI SDK 7** (`ai` + `@ai-sdk/openai`, Zod structured output) for the LLM
   workflow; Hermes polyfills in `polyfills.ts` (imported by `app/_layout.tsx`)
@@ -40,31 +43,34 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
 
 ## Architecture rules (do not break these)
 
-- `app/` — Expo Router screens: thin, presentation-only. No inline business logic.
-- `components/ui/` — atomic, pure, props-driven components (`React.memo`, stable callbacks).
-- `components/screens/` — screen-specific composed components.
-- `hooks/` — all interaction/business logic as typed custom hooks.
-- `lib/` — catalog query helpers, filter pipeline, LLM client/prompts/schema, theme tokens.
-- `state/flowStore.ts` — Zustand flow store: `{ budget, dietaryNeeds, nutritionalGoals }`.
-- `data/product_catalog_en.json` — 3,295-product catalog; index once, memoize filters.
+All application code lives under `src/` (Expo folder-structure best practices);
+file names are kebab-case, component/function exports stay PascalCase.
+
+- `src/app/` — Expo Router screens: thin, presentation-only. No inline business logic.
+- `src/components/ui/` — atomic, pure, props-driven components (no manual memoization — React Compiler).
+- `src/components/screens/` — screen-specific composed components.
+- `src/hooks/` — all interaction/business logic as typed custom hooks.
+- `src/lib/` — catalog query helpers, filter pipeline, LLM client/prompts/schema, theme tokens.
+- `src/state/flow-store.ts` — Zustand flow store: `{ budget, dietaryNeeds, nutritionalGoals }`.
+- `src/data/product_catalog_en.json` — 3,295-product catalog; index once, memoize filters.
 
 ## LLM workflow (screen 05)
 
-- `lib/llm/schema.ts` — Zod schema = single source of truth (model output has no
+- `src/lib/llm/schema.ts` — Zod schema = single source of truth (model output has no
   prices; ingredients carry `grams` for deterministic costing).
-- `lib/llm/prompt.ts` — messages builder; basket lines include €/kg, macros
+- `src/lib/llm/prompt.ts` — messages builder; basket lines include €/kg, macros
   per 100g, Nutri-Score and allergens so the model can reason about goals.
-- `lib/llm/cost.ts` — deterministic pricing from catalog €/kg × grams
+- `src/lib/llm/cost.ts` — deterministic pricing from catalog €/kg × grams
   (`priceWeeklyPlan` → app-facing `WeeklyPlan` with computed `pricePerServing`).
-- `lib/llm/client.ts` — AI SDK `generateText` + `Output.object`; injectable
+- `src/lib/llm/client.ts` — AI SDK `generateText` + `Output.object`; injectable
   `PlanGenerator` for tests; domain validation (catalog ids, real budget) with
   one feedback retry. Model via `EXPO_PUBLIC_MEALPLAN_MODEL` (default
   `gpt-4o-mini`); provider swap = one line (`createOpenAI` → other provider).
-- Unit tests colocated: `lib/llm/*.test.ts`, run with `bun test`.
+- Unit tests colocated: `src/lib/llm/*.test.ts`, run with `bun test`.
 
 ## Design source of truth
 
-- `lib/theme.ts` — layout tokens (canvas 393×852, spacing, sizes) extracted from Figma.
+- `src/lib/theme.ts` — layout tokens (canvas 393×852, spacing, sizes) extracted from Figma.
 - `docs/design-reference.md` — palette, typography, per-screen specs, documented Figma gaps/improvisations.
 - Figma extraction is **one-shot and local** (free-plan API budget); raw JSON is at
   `../design/figma_full.json`, outside the repo. Do not re-fetch unless a design changes.
@@ -82,11 +88,15 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
 - ✅ Phase 0–2: scaffold, Figma tokens, screens 01–04 implemented and committed.
 - ✅ Phase 3: filter pipeline, LLM workflow (Vercel AI SDK 7 + Zod structured
   output, deterministic catalog-based costing, validation retry), screen 05,
-  28 unit tests on `lib/llm` (`bun test`).
-- 🔴 Known issue under investigation: on-device renders (see `../review/`) show
-  `Pressable` container styles (backgrounds, fixed sizes, radii) not applied —
-  CTA pills invisible, option cards collapsed, back-button circle missing.
-  View/Text styles render correctly. Root cause not yet identified.
-- ⬜ Next: e2e tests (Maestro), unit tests for `state/flowStore` and
-  `lib/filters.ts`, real on-device LLM generation check.
+  28 unit tests on `src/lib/llm` (`bun test`).
+- ✅ Tooling hardening: React Compiler enabled (all manual memoization removed),
+  codebase migrated to `src/` with kebab-case file names (Expo best practices),
+  stack transitions switched to `simple_push` + opaque per-screen
+  `contentStyle` backgrounds — fixes the iOS 26 card-style transition flicker
+  (rounded corners letting the underlying screen flash through).
+- ✅ Pressable-style issue root-caused: NativeWind's cssInterop on `Pressable`
+  drops function-form `style` at runtime — keep static style arrays and track
+  pressed state via `onPressIn`/`onPressOut` (see `cta-button.tsx`).
+- ⬜ Next: e2e tests (Maestro), unit tests for `src/state/flow-store` and
+  `src/lib/filters.ts`, real on-device LLM generation check.
 - ⬜ Phase 4: pixel-perfect polish, delivery doc, AI logs export, screen recording.

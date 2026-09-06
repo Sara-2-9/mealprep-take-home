@@ -1,6 +1,6 @@
 import { getProductById } from "../catalog";
 import type { Product } from "../types";
-import type { WeeklyPlan } from "../mealPlan";
+import type { WeeklyPlan } from "../meal-plan";
 import type { LLMPlanMeal, LLMWeeklyPlan } from "./schema";
 
 /**

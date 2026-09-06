@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useFlowStore, type DietaryNeed } from "../state/flowStore";
+import { useFlowStore, type DietaryNeed } from "../state/flow-store";
 
 export interface DietaryOption {
   id: DietaryNeed;
