@@ -9,13 +9,15 @@ export interface PlanIngredient {
   name: string;
   /** Human-readable amount, e.g. "400g", "2 cloves" */
   amount: string;
+  /** Grams of product used — basis of the deterministic cost computation */
+  grams: number;
 }
 
 export interface PlanMeal {
   name: string;
   prepTimeMinutes: number;
   servings: number;
-  /** Estimated cost per serving in EUR */
+  /** Cost per serving in EUR, computed from catalog €/kg prices × grams */
   pricePerServing: number;
   ingredients: PlanIngredient[];
   steps: string[];

@@ -32,8 +32,11 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
 - Bun 1.4 as package manager/runtime — always `bun install`, never npm
 - NativeWind v4 (Tailwind) for utilities; exact Figma px values via StyleSheet + tokens
 - Reanimated 4 for animations, Gesture Handler for the budget slider, Zustand for flow state
+- **Vercel AI SDK 7** (`ai` + `@ai-sdk/openai`, Zod structured output) for the LLM
+  workflow; Hermes polyfills in `polyfills.ts` (imported by `app/_layout.tsx`)
 - Run: `bunx expo start` (Expo Go on a physical iPhone 16 Pro is the reference target)
 - Simulator: use the "iPhone 16 Pro" simulator (iOS 26.3) for local previews/screenshots
+- Tests: `bun test` (unit, colocated `*.test.ts`); `bun run typecheck`
 
 ## Architecture rules (do not break these)
 
@@ -44,6 +47,20 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
 - `lib/` — catalog query helpers, filter pipeline, LLM client/prompts/schema, theme tokens.
 - `state/flowStore.ts` — Zustand flow store: `{ budget, dietaryNeeds, nutritionalGoals }`.
 - `data/product_catalog_en.json` — 3,295-product catalog; index once, memoize filters.
+
+## LLM workflow (screen 05)
+
+- `lib/llm/schema.ts` — Zod schema = single source of truth (model output has no
+  prices; ingredients carry `grams` for deterministic costing).
+- `lib/llm/prompt.ts` — messages builder; basket lines include €/kg, macros
+  per 100g, Nutri-Score and allergens so the model can reason about goals.
+- `lib/llm/cost.ts` — deterministic pricing from catalog €/kg × grams
+  (`priceWeeklyPlan` → app-facing `WeeklyPlan` with computed `pricePerServing`).
+- `lib/llm/client.ts` — AI SDK `generateText` + `Output.object`; injectable
+  `PlanGenerator` for tests; domain validation (catalog ids, real budget) with
+  one feedback retry. Model via `EXPO_PUBLIC_MEALPLAN_MODEL` (default
+  `gpt-4o-mini`); provider swap = one line (`createOpenAI` → other provider).
+- Unit tests colocated: `lib/llm/*.test.ts`, run with `bun test`.
 
 ## Design source of truth
 
@@ -60,12 +77,16 @@ GitHub repo: https://github.com/Sara-2-9/mealprep-take-home (public).
   exposes an OpenAI key), `design/`, `review/`, `*.fig`. Enforced via `.gitignore`.
 - OpenAI key: `.env` / app config extra only; `.env.example` documents the shape.
 
-## Current status (2026-09-05)
+## Current status (2026-09-06)
 
 - ✅ Phase 0–2: scaffold, Figma tokens, screens 01–04 implemented and committed.
+- ✅ Phase 3: filter pipeline, LLM workflow (Vercel AI SDK 7 + Zod structured
+  output, deterministic catalog-based costing, validation retry), screen 05,
+  28 unit tests on `lib/llm` (`bun test`).
 - 🔴 Known issue under investigation: on-device renders (see `../review/`) show
   `Pressable` container styles (backgrounds, fixed sizes, radii) not applied —
   CTA pills invisible, option cards collapsed, back-button circle missing.
   View/Text styles render correctly. Root cause not yet identified.
-- ⬜ Phase 3 next: `lib/filters.ts`, `lib/llm/`, `hooks/useMealPlan.ts`, screen 05.
+- ⬜ Next: e2e tests (Maestro), unit tests for `state/flowStore` and
+  `lib/filters.ts`, real on-device LLM generation check.
 - ⬜ Phase 4: pixel-perfect polish, delivery doc, AI logs export, screen recording.

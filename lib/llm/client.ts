@@ -1,21 +1,30 @@
-import { getProductById } from "../catalog";
-import { weeklyCost, type WeeklyPlan } from "../mealPlan";
 import {
-  WEEKLY_PLAN_SCHEMA,
-  parseWeeklyPlan,
-  type ChatCompletionResponse,
-  type ChatMessage,
-} from "./schema";
-import { buildMealPlanMessages, buildRetryMessage, type MealPlanRequest } from "./prompt";
+  AISDKError,
+  generateText,
+  NoOutputGeneratedError,
+  Output,
+  type ModelMessage,
+} from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { weeklyCost, type WeeklyPlan } from "../mealPlan";
+import { priceWeeklyPlan, round2 } from "./cost";
+import { weeklyPlanSchema, type LLMWeeklyPlan } from "./schema";
+import {
+  buildMealPlanMessages,
+  buildRetryMessage,
+  type MealPlanRequest,
+} from "./prompt";
 
 /**
- * OpenAI client for the meal-plan workflow (Phase 3, step 22).
- * Chat Completions + strict JSON schema, programmatic validation of the
- * result (catalog ids + budget) and one retry with feedback on violations.
+ * Meal-plan LLM workflow on the Vercel AI SDK (Phase 3, step 22).
+ * `generateText` + `Output.object` gives schema-validated, typed output from
+ * the Zod schema; the provider is swappable by changing one line (or the
+ * EXPO_PUBLIC_MEALPLAN_MODEL env var). Domain validation (catalog ids, real
+ * budget computed from catalog prices) stays custom, with one retry carrying
+ * the rejection reason back to the model.
  */
 
-const ENDPOINT = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-4o-mini";
+const MODEL_ID = process.env.EXPO_PUBLIC_MEALPLAN_MODEL ?? "gpt-4o-mini";
 const MAX_ATTEMPTS = 2;
 
 export class MealPlanError extends Error {
@@ -28,39 +37,53 @@ export class MealPlanError extends Error {
   }
 }
 
-async function callOpenAI(
-  apiKey: string,
-  messages: ChatMessage[],
-): Promise<string> {
-  let response: Response;
-  try {
-    response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        response_format: { type: "json_schema", json_schema: WEEKLY_PLAN_SCHEMA },
-        temperature: 0.7,
-      }),
-    });
-  } catch {
-    throw new MealPlanError("Network unreachable", "network");
-  }
+/**
+ * One LLM round-trip: messages in, schema-validated plan out.
+ * Injectable so tests can drive the retry/validation loop without network.
+ */
+export type PlanGenerator = (
+  messages: ModelMessage[],
+) => Promise<LLMWeeklyPlan>;
 
-  const body = (await response.json()) as ChatCompletionResponse;
-  if (!response.ok) {
-    throw new MealPlanError(
-      body.error?.message ?? `OpenAI error ${response.status}`,
-      "api",
+function toMealPlanError(error: unknown): MealPlanError {
+  if (error instanceof MealPlanError) return error;
+  if (NoOutputGeneratedError.isInstance(error)) {
+    return new MealPlanError(
+      "The model returned an unusable plan",
+      "invalid-plan",
     );
   }
-  const content = body.choices?.[0]?.message?.content;
-  if (!content) throw new MealPlanError("Empty model response", "api");
-  return content;
+  // React Native fetch failures surface as TypeError ("Network request failed")
+  if (error instanceof TypeError) {
+    return new MealPlanError("Network unreachable", "network");
+  }
+  if (AISDKError.isInstance(error)) {
+    return new MealPlanError(error.message, "api");
+  }
+  return new MealPlanError("Unexpected LLM error", "api");
+}
+
+function createOpenAIGenerator(apiKey: string): PlanGenerator {
+  const openai = createOpenAI({ apiKey });
+  return async (messages) => {
+    try {
+      const result = await generateText({
+        model: openai(MODEL_ID),
+        messages,
+        output: Output.object({
+          schema: weeklyPlanSchema,
+          name: "weekly_meal_plan",
+          description:
+            "7-day dinner plan built exclusively from the provided supermarket catalog",
+        }),
+        temperature: 0.7,
+        maxRetries: 2,
+      });
+      return result.output;
+    } catch (error) {
+      throw toMealPlanError(error);
+    }
+  };
 }
 
 /** Returns a rejection reason, or null when the plan is valid */
@@ -69,11 +92,6 @@ export function validatePlan(plan: WeeklyPlan, budget: number): string | null {
   for (const day of plan.days) {
     if (days.has(day.day)) return `duplicate day "${day.day}"`;
     days.add(day.day);
-    for (const ingredient of day.meal.ingredients) {
-      if (!getProductById(ingredient.productId)) {
-        return `unknown productId ${ingredient.productId} ("${ingredient.name}")`;
-      }
-    }
   }
   const total = weeklyCost(plan);
   if (total > budget) {
@@ -84,35 +102,38 @@ export function validatePlan(plan: WeeklyPlan, budget: number): string | null {
 
 export interface MealPlanResult {
   plan: WeeklyPlan;
-  /** Weekly estimated cost, EUR */
+  /** Weekly cost in EUR, computed from catalog prices */
   totalCost: number;
 }
 
 export async function generateMealPlan(
   request: MealPlanRequest,
+  generate?: PlanGenerator,
 ): Promise<MealPlanResult> {
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-  if (!apiKey || apiKey.startsWith("sk-your")) {
-    throw new MealPlanError("Missing OpenAI API key (.env)", "missing-key");
+  if (!generate) {
+    const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    if (!apiKey || apiKey.startsWith("sk-your")) {
+      throw new MealPlanError("Missing OpenAI API key (.env)", "missing-key");
+    }
+    generate = createOpenAIGenerator(apiKey);
   }
 
-  const messages = buildMealPlanMessages(request);
+  const messages: ModelMessage[] = [...buildMealPlanMessages(request)];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const content = await callOpenAI(apiKey, messages);
-    let plan: WeeklyPlan;
-    try {
-      plan = parseWeeklyPlan(content);
-    } catch {
-      throw new MealPlanError("Unparseable model response", "invalid-plan");
-    }
-    const rejection = validatePlan(plan, request.budget);
+    const llmPlan = await generate(messages);
+    const { plan, unknownProductIds } = priceWeeklyPlan(llmPlan);
+    const rejection =
+      unknownProductIds.length > 0
+        ? `unknown productIds: ${unknownProductIds.join(", ")} — ` +
+          "use only ids from the catalog basket"
+        : validatePlan(plan, request.budget);
     if (!rejection) {
-      return { plan, totalCost: weeklyCost(plan) };
+      return { plan, totalCost: round2(weeklyCost(plan)) };
     }
     if (attempt === MAX_ATTEMPTS) {
       throw new MealPlanError(`Invalid plan: ${rejection}`, "invalid-plan");
     }
-    messages.push({ role: "assistant", content });
+    messages.push({ role: "assistant", content: JSON.stringify(llmPlan) });
     messages.push(buildRetryMessage(rejection));
   }
   // Unreachable — loop either returns or throws

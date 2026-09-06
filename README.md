@@ -9,7 +9,7 @@ Blackboard Mobile Software Engineer take-home.
 - **NativeWind** (Tailwind for RN) — design tokens mapped from Figma
 - **Zustand** — flow state (budget, dietary needs, nutritional goals)
 - **Reanimated + Gesture Handler** — animations and custom slider
-- **OpenAI structured outputs** — LLM meal-plan workflow (client-side POC)
+- **Vercel AI SDK** (`ai` + `@ai-sdk/openai`, Zod structured output) — LLM meal-plan workflow (client-side POC)
 
 ## Architecture
 
@@ -36,6 +36,13 @@ Requires [Bun](https://bun.sh) (`~/.bun/bin` on PATH).
 bun install
 cp .env.example .env   # add your OpenAI key
 bunx expo start --ios  # or: bunx expo start --android
+```
+
+## Tests
+
+```bash
+bun test        # unit tests (lib/llm, catalog-based cost computation)
+bun run typecheck
 ```
 
 ## Commits

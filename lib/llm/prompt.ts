@@ -1,12 +1,14 @@
+import type { ModelMessage } from "ai";
 import { buildPromptBasket } from "../filters";
 import type { Product } from "../types";
 import type { DietaryNeed, NutritionalGoal } from "../../state/flowStore";
-import type { ChatMessage } from "./schema";
 
 /**
  * Prompt construction for the meal-plan LLM workflow.
  * The basket keeps the ingredient list compact (department variety,
  * budget-friendly, goal-ranked) so the whole catalog never hits the prompt.
+ * Basket lines carry macros, Nutri-Score and allergens so the model can
+ * actually reason about the nutritional goals when composing recipes.
  */
 
 const NEED_LABELS: Record<DietaryNeed, string> = {
@@ -33,9 +35,24 @@ function describe(selection: string[], labels: Record<string, string>): string {
   return active.map((v) => labels[v] ?? v).join(", ");
 }
 
+/**
+ * Compact one-line product card:
+ * `id | name qty | €pack | €/kg | P/C/F g per 100g | nutri-score | allergens`
+ */
 function formatBasketLine(p: Product): string {
   const qty = p.quantity ? ` ${p.quantity}` : "";
-  return `${p.id} | ${p.name}${qty} | €${p.price.amount.toFixed(2)}`;
+  const unit = p.unitPrice
+    ? ` | €${p.unitPrice.amount.toFixed(2)}/${p.unitPrice.unit}`
+    : "";
+  const n = p.nutrition;
+  const macros = n
+    ? ` | P${n.proteins100g ?? 0}/C${n.carbohydrates100g ?? 0}/F${n.fat100g ?? 0}g per 100g`
+    : "";
+  const ns = p.nutriScore ? ` | nutri-score ${p.nutriScore}` : "";
+  const allergens = p.allergens?.length
+    ? ` | allergens: ${p.allergens.map((a) => a.name).join(", ")}`
+    : "";
+  return `${p.id} | ${p.name}${qty} | €${p.price.amount.toFixed(2)}${unit}${macros}${ns}${allergens}`;
 }
 
 export interface MealPlanRequest {
@@ -48,25 +65,31 @@ export function buildMealPlanMessages({
   budget,
   dietaryNeeds,
   nutritionalGoals,
-}: MealPlanRequest): ChatMessage[] {
+}: MealPlanRequest): ModelMessage[] {
   const basket = buildPromptBasket(dietaryNeeds, nutritionalGoals);
   const lines = basket.map(formatBasketLine).join("\n");
 
   const system = [
     "You are the meal-planning engine of MealPrep, an app that builds weekly",
     "dinner plans from a real supermarket catalog (Esselunga, Italy).",
-    "You reply ONLY with JSON matching the provided schema.",
+    "You reply ONLY with data matching the provided schema.",
     "",
     "Rules:",
     "- Exactly 7 days (Monday…Sunday), one dinner recipe per day.",
     "- Recipes must be simple home cooking, 15–45 minutes, 2 servings.",
     "- Ingredients MUST come from the provided catalog list: reference each",
-    "  with its exact productId and product name, plus a realistic amount.",
-    "- Steps are plain instructions WITHOUT leading numbers (numbering is UI).",
-    "- pricePerServing = estimated ingredient cost of one serving in EUR,",
-    "  computed from the catalog prices and the amounts actually used.",
-    `- HARD CONSTRAINT: the weekly total (Σ pricePerServing × servings) must`,
+    "  with its exact productId and product name.",
+    '- For each ingredient set `amount` (human-readable, e.g. "400g") and',
+    "  `grams` = grams of product actually used (ml ≈ g for liquids).",
+    "  Base `grams` on the pack sizes: you cannot use 50g of a 1kg pack.",
+    "- Costs are computed programmatically from catalog €/kg prices × grams —",
+    "  NEVER estimate or output prices yourself.",
+    `- HARD CONSTRAINT: the weekly total computed as Σ(grams × €/kg) must`,
     `  be ≤ €${budget}. Prefer cheaper products when in doubt.`,
+    "- When nutritional goals are set, prefer products whose macros (P/C/F",
+    "  per 100g) and Nutri-Score support them.",
+    "- NEVER use a product whose allergens conflict with the dietary needs.",
+    "- Steps are plain instructions WITHOUT leading numbers (numbering is UI).",
     "- Vary cuisines and departments across the week; avoid repeating mains.",
   ].join("\n");
 
@@ -75,7 +98,7 @@ export function buildMealPlanMessages({
     `Dietary needs: ${describe(dietaryNeeds, NEED_LABELS)}.`,
     `Nutritional goals: ${describe(nutritionalGoals, GOAL_LABELS)}.`,
     "",
-    "Catalog basket (id | product | pack price):",
+    "Catalog basket (id | product pack | €pack | €/kg | macros | nutri-score | allergens):",
     lines,
   ].join("\n");
 
@@ -86,7 +109,7 @@ export function buildMealPlanMessages({
 }
 
 /** Feedback message appended on retry when validation fails */
-export function buildRetryMessage(reason: string): ChatMessage {
+export function buildRetryMessage(reason: string): ModelMessage {
   return {
     role: "user",
     content: `The previous plan was rejected: ${reason}. Regenerate the full 7-day plan fixing this.`,
