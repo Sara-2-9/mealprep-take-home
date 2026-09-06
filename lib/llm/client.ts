@@ -66,10 +66,18 @@ function toMealPlanError(error: unknown): MealPlanError {
 function createOpenAIGenerator(apiKey: string): PlanGenerator {
   const openai = createOpenAI({ apiKey });
   return async (messages) => {
+    // AI SDK 7: system messages are not allowed in `messages` — they go in
+    // the dedicated `system` option.
+    const systemMessage = messages.find((m) => m.role === "system");
+    const conversation = messages.filter((m) => m.role !== "system");
     try {
       const result = await generateText({
         model: openai(MODEL_ID),
-        messages,
+        system:
+          typeof systemMessage?.content === "string"
+            ? systemMessage.content
+            : undefined,
+        messages: conversation,
         output: Output.object({
           schema: weeklyPlanSchema,
           name: "weekly_meal_plan",
