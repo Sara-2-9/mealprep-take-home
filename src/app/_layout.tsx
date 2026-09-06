@@ -1,14 +1,54 @@
 import "../../global.css";
 import "../polyfills";
 import { useEffect } from "react";
-import { StyleSheet } from "react-native";
-import { Stack } from "expo-router";
+import { StyleSheet, View } from "react-native";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BackButton } from "../components/ui/back-button";
+import { ProgressBar } from "../components/ui/progress-bar";
+import { CONTENT_WIDTH, HEADER, STEP_PROGRESS } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync();
+
+/**
+ * Flow progress per route — drives the FIXED header below. The header lives
+ * in the layout (not in the screens), so the ProgressBar never unmounts
+ * during stack transitions and animates 25→50→75 in place.
+ */
+const ROUTE_PROGRESS: Record<string, number> = {
+  "/budget": STEP_PROGRESS.budget,
+  "/dietary-needs": STEP_PROGRESS.dietaryNeeds,
+  "/nutritional-goals": STEP_PROGRESS.nutritionalGoals,
+};
+
+/**
+ * Persistent flow header (Figma "Frame 12" row): back button + progress bar.
+ * Rendered as an overlay above the Stack on screens 02–04; screens render
+ * only their title (FlowTitle). Screen titles slide with the transition,
+ * the chrome stays put.
+ */
+function FixedFlowHeader() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const progress = ROUTE_PROGRESS[pathname];
+  if (progress === undefined) return null;
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[styles.header, { paddingTop: insets.top + (HEADER.top - 62) }]}
+    >
+      <View style={styles.headerRow}>
+        <BackButton onPress={() => router.back()} />
+        <ProgressBar progress={progress} />
+      </View>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -46,7 +86,7 @@ export default function RootLayout() {
         flicker. `animationMatchesGesture` makes the interactive swipe-back
         use the same full-screen slide — iOS would otherwise force the
         card-style system transition for gesture-driven pops. The root view
-        gets the same cream background as a last safety net behind the stack.
+        gets the same background as a last safety net behind the stack.
       */}
       <Stack
         screenOptions={{
@@ -65,6 +105,7 @@ export default function RootLayout() {
           options={{ contentStyle: { backgroundColor: "#34C759" } }}
         />
       </Stack>
+      <FixedFlowHeader />
     </GestureHandlerRootView>
   );
 }
@@ -73,5 +114,20 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#FDFFFB",
+  },
+  header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 10,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    width: CONTENT_WIDTH,
+    height: HEADER.backButtonSize,
   },
 });

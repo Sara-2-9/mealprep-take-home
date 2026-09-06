@@ -1,26 +1,22 @@
 import { View, StyleSheet } from "react-native";
 import { ScreenContainer } from "../components/ui/screen-container";
-import { FlowHeader } from "../components/ui/flow-header";
+import { FlowTitle } from "../components/ui/flow-title";
 import { OptionCard } from "../components/ui/option-card";
 import { CTAButton } from "../components/ui/cta-button";
 import { useDietaryNeeds } from "../hooks/use-dietary-needs";
-import { STEP_PROGRESS, OPTION_GRID } from "../lib/theme";
+import { OPTION_GRID } from "../lib/theme";
 
 /**
  * Screen 03 — Dietary needs selection. 2x3 option grid, multi-select
- * with exclusive "None".
+ * with exclusive "None". Back + progress bar are in the fixed layout header.
  */
 export default function DietaryNeedsScreen() {
-  const { options, selected, toggle, canContinue, goBack, goNext } =
+  const { options, selected, toggle, canContinue, goNext } =
     useDietaryNeeds();
 
   return (
     <ScreenContainer>
-      <FlowHeader
-        title="Any dietary needs?"
-        progress={STEP_PROGRESS.dietaryNeeds}
-        onBack={goBack}
-      />
+      <FlowTitle>Any dietary needs?</FlowTitle>
 
       <View style={styles.grid}>
         {options.map((option) => (
