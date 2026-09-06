@@ -1,4 +1,3 @@
-import { useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { useFlowStore, type NutritionalGoal } from "../state/flowStore";
 
@@ -20,18 +19,19 @@ export const GOAL_OPTIONS: GoalOption[] = [
 
 /**
  * Business logic for screen 04 — nutritional goals selection.
+ * Memoization is handled by the React Compiler (experiments.reactCompiler).
  */
 export function useNutritionalGoals() {
   const router = useRouter();
   const selected = useFlowStore((s) => s.nutritionalGoals);
   const toggle = useFlowStore((s) => s.toggleNutritionalGoal);
 
-  const canContinue = useMemo(() => selected.length > 0, [selected]);
+  const canContinue = selected.length > 0;
 
-  const goBack = useCallback(() => router.back(), [router]);
-  const goNext = useCallback(() => {
+  const goBack = () => router.back();
+  const goNext = () => {
     if (canContinue) router.push("/meal-plan");
-  }, [canContinue, router]);
+  };
 
   return {
     options: GOAL_OPTIONS,

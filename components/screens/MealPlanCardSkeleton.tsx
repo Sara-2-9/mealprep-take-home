@@ -1,4 +1,4 @@
-import { memo, useEffect } from "react";
+import { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
@@ -13,7 +13,7 @@ import { MEAL_PLAN } from "../../lib/theme";
  * Loading state of the day card — mirrors the skeleton design in the
  * original Figma frame (surface pill bars 289x16) with a soft pulse.
  */
-export const MealPlanCardSkeleton = memo(function MealPlanCardSkeleton() {
+export function MealPlanCardSkeleton() {
   const opacity = useSharedValue(1);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export const MealPlanCardSkeleton = memo(function MealPlanCardSkeleton() {
       </Animated.View>
     </View>
   );
-});
+}
 
 function Bar({ width, height = 16 }: { width?: number; height?: number }) {
   return (

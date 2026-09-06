@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { OPTION_GRID } from "../../lib/theme";
@@ -15,7 +15,7 @@ interface OptionCardProps {
  * Selected state (from the updated Sara design): light-green background
  * #E9FEF2 with a 4px inside border #49DD76; label stays black.
  */
-export const OptionCard = memo(function OptionCard({
+export function OptionCard({
   emoji,
   label,
   selected,
@@ -44,7 +44,7 @@ export const OptionCard = memo(function OptionCard({
       </Text>
     </Pressable>
   );
-});
+}
 
 const styles = StyleSheet.create({
   card: {

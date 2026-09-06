@@ -1,4 +1,3 @@
-import { memo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { BackButton } from "./BackButton";
 import { ProgressBar } from "./ProgressBar";
@@ -15,7 +14,7 @@ interface FlowHeaderProps {
  * Shared header of flow screens 02–04 (Figma "Frame 12"):
  * back button + progress bar row (gap 10), then the 32pt title. Block top = 82.
  */
-export const FlowHeader = memo(function FlowHeader({
+export function FlowHeader({
   title,
   progress,
   onBack,
@@ -31,7 +30,7 @@ export const FlowHeader = memo(function FlowHeader({
       </Text>
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {

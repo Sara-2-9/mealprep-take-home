@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useWindowDimensions,
   type NativeScrollEvent,
@@ -25,6 +25,10 @@ let cache: CacheEntry | null = null;
  * Business logic for screen 05 — weekly meal plan.
  * Orchestrates the LLM workflow (generate → validate → retry) and the
  * day pager (selector ↔ horizontal scroll sync).
+ *
+ * Memoization is handled by the React Compiler (experiments.reactCompiler).
+ * The generation effect is written so that correctness never depends on
+ * callback identity: it runs only while status === "loading".
  */
 export function useMealPlan() {
   const budget = useFlowStore((s) => s.budget);
@@ -32,62 +36,62 @@ export function useMealPlan() {
   const nutritionalGoals = useFlowStore((s) => s.nutritionalGoals);
 
   const requestKey = JSON.stringify({ budget, dietaryNeeds, nutritionalGoals });
+  const cached = cache?.key === requestKey ? cache : null;
 
   const [status, setStatus] = useState<MealPlanStatus>(
-    cache?.key === requestKey ? "ready" : "loading",
+    cached ? "ready" : "loading",
   );
-  const [plan, setPlan] = useState<WeeklyPlan | null>(
-    cache?.key === requestKey ? cache.plan : null,
-  );
+  const [plan, setPlan] = useState<WeeklyPlan | null>(cached?.plan ?? null);
   const [totalCost, setTotalCost] = useState<number | null>(
-    cache?.key === requestKey ? cache.totalCost : null,
+    cached?.totalCost ?? null,
   );
   const [selectedDay, setSelectedDay] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
   const { width } = useWindowDimensions();
 
-  const generate = useCallback(async () => {
-    setStatus("loading");
-    try {
-      const result = await generateMealPlan({
-        budget,
-        dietaryNeeds,
-        nutritionalGoals,
-      });
-      cache = { key: requestKey, plan: result.plan, totalCost: result.totalCost };
-      setPlan(result.plan);
-      setTotalCost(result.totalCost);
-      setStatus("ready");
-    } catch (error) {
-      console.warn("[useMealPlan] generation failed:", error);
-      setStatus("error");
-    }
-    // requestKey captures budget/dietaryNeeds/nutritionalGoals
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestKey]);
-
   useEffect(() => {
-    if (cache?.key !== requestKey) {
-      generate();
-    }
-  }, [requestKey, generate]);
+    if (status !== "loading") return;
+    let cancelled = false;
+    generateMealPlan({ budget, dietaryNeeds, nutritionalGoals })
+      .then((result) => {
+        if (cancelled) return;
+        cache = {
+          key: requestKey,
+          plan: result.plan,
+          totalCost: result.totalCost,
+        };
+        setPlan(result.plan);
+        setTotalCost(result.totalCost);
+        setStatus("ready");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.warn("[useMealPlan] generation failed:", error);
+        setStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, requestKey, budget, dietaryNeeds, nutritionalGoals]);
 
   /** Day selector tap → scroll the pager */
-  const selectDay = useCallback((index: number) => {
+  const selectDay = (index: number) => {
     setSelectedDay(index);
-    pagerRef.current?.scrollTo({ x: index * MEAL_PLAN.cardStride, animated: true });
-  }, []);
+    pagerRef.current?.scrollTo({
+      x: index * MEAL_PLAN.cardStride,
+      animated: true,
+    });
+  };
 
   /** Pager swipe → update the day selector */
-  const onMomentumScrollEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(
-        event.nativeEvent.contentOffset.x / MEAL_PLAN.cardStride,
-      );
-      setSelectedDay(Math.max(0, Math.min(6, index)));
-    },
-    [],
-  );
+  const onMomentumScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const index = Math.round(
+      event.nativeEvent.contentOffset.x / MEAL_PLAN.cardStride,
+    );
+    setSelectedDay(Math.max(0, Math.min(6, index)));
+  };
 
   return {
     status,
@@ -96,7 +100,7 @@ export function useMealPlan() {
     displayedCost: totalCost ?? budget,
     selectedDay,
     selectDay,
-    retry: generate,
+    retry: () => setStatus("loading"),
     pagerRef,
     onMomentumScrollEnd,
     /** Horizontal padding that centers the 337pt card with the Figma peek */

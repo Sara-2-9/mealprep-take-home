@@ -1,4 +1,3 @@
-import { memo, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -29,7 +28,7 @@ interface BudgetSliderProps {
  * (documented gap). Track 345x16 surface pill, 64px thumb, green fill.
  * EUR 25–150 in EUR 5 steps with snap + haptic tick per step.
  */
-export const BudgetSlider = memo(function BudgetSlider({
+export function BudgetSlider({
   value,
   onChange,
 }: BudgetSliderProps) {
@@ -38,16 +37,13 @@ export const BudgetSlider = memo(function BudgetSlider({
   const start = useSharedValue(0);
   const lastStep = useSharedValue(stepIndex);
 
-  const commit = useCallback(
-    (step: number) => {
-      onChange(BUDGET_MIN + step * BUDGET_STEP);
-    },
-    [onChange]
-  );
+  const commit = (step: number) => {
+    onChange(BUDGET_MIN + step * BUDGET_STEP);
+  };
 
-  const tick = useCallback(() => {
+  const tick = () => {
     Haptics.selectionAsync();
-  }, []);
+  };
 
   const pan = Gesture.Pan()
     .onBegin(() => {
@@ -84,7 +80,7 @@ export const BudgetSlider = memo(function BudgetSlider({
       </View>
     </GestureDetector>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {

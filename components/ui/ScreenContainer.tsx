@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { View, StyleSheet, useWindowDimensions, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SCREEN_PADDING_X, CONTENT_WIDTH, HEADER, CTA } from "../../lib/theme";
@@ -16,7 +16,7 @@ interface ScreenContainerProps {
  * bottom margin above the home indicator. On devices wider than the 393pt
  * canvas the 353pt content column is centered instead of left-anchored.
  */
-export const ScreenContainer = memo(function ScreenContainer({
+export function ScreenContainer({
   children,
   backgroundColor = "#FDFFFB",
   style,
@@ -40,7 +40,7 @@ export const ScreenContainer = memo(function ScreenContainer({
       {children}
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   base: {

@@ -1,4 +1,4 @@
-import { memo, useEffect } from "react";
+import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Stop, Mask, Rect, Text as SvgText, G } from "react-native-svg";
 import Animated, {
@@ -28,7 +28,7 @@ interface BudgetValueProps {
  * horizontally across the glyphs. Implemented as an SVG mask: the text
  * shape clips the animated gradient rect, no extra native deps needed.
  */
-export const BudgetValue = memo(function BudgetValue({ value }: BudgetValueProps) {
+export function BudgetValue({ value }: BudgetValueProps) {
   const shineX = useSharedValue(-SHINE_WIDTH);
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export const BudgetValue = memo(function BudgetValue({ value }: BudgetValueProps
       </Svg>
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   wrap: {

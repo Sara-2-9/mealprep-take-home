@@ -1,4 +1,4 @@
-import { memo, useEffect } from "react";
+import { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
@@ -21,7 +21,7 @@ interface ProgressBarProps {
  * lighter-green shine bar (#49DD76, 6px, 12px inset) anchored to the top
  * of the pill, as in the updated design. Fill animates between steps.
  */
-export const ProgressBar = memo(function ProgressBar({ progress }: ProgressBarProps) {
+export function ProgressBar({ progress }: ProgressBarProps) {
   const animated = useSharedValue(progress);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export const ProgressBar = memo(function ProgressBar({ progress }: ProgressBarPr
       </Animated.View>
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   track: {

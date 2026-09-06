@@ -1,4 +1,3 @@
-import { useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { useFlowStore, type DietaryNeed } from "../state/flowStore";
 
@@ -22,18 +21,19 @@ export const DIETARY_OPTIONS: DietaryOption[] = [
  * Business logic for screen 03 — dietary needs selection.
  * CTA stays disabled (per Figma) until the user makes an explicit choice,
  * including "None".
+ * Memoization is handled by the React Compiler (experiments.reactCompiler).
  */
 export function useDietaryNeeds() {
   const router = useRouter();
   const selected = useFlowStore((s) => s.dietaryNeeds);
   const toggle = useFlowStore((s) => s.toggleDietaryNeed);
 
-  const canContinue = useMemo(() => selected.length > 0, [selected]);
+  const canContinue = selected.length > 0;
 
-  const goBack = useCallback(() => router.back(), [router]);
-  const goNext = useCallback(() => {
+  const goBack = () => router.back();
+  const goNext = () => {
     if (canContinue) router.push("/nutritional-goals");
-  }, [canContinue, router]);
+  };
 
   return {
     options: DIETARY_OPTIONS,

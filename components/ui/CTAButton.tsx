@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { CTA, CONTENT_WIDTH } from "../../lib/theme";
@@ -17,7 +17,7 @@ interface CTAButtonProps {
  * Pressable, function-form styles are dropped at runtime (background and
  * dimensions disappear). Pressed state is tracked via onPressIn/onPressOut.
  */
-export const CTAButton = memo(function CTAButton({
+export function CTAButton({
   label,
   onPress,
   disabled = false,
@@ -48,7 +48,7 @@ export const CTAButton = memo(function CTAButton({
       </Text>
     </Pressable>
   );
-});
+}
 
 const styles = StyleSheet.create({
   base: {

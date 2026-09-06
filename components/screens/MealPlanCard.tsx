@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Animated, View, Text, StyleSheet } from "react-native";
 import type { DayPlan } from "../../lib/mealPlan";
 import { MEAL_PLAN } from "../../lib/theme";
@@ -17,7 +17,7 @@ const SCROLLBAR_COLOR = "#E9FEF2";
  * Recipe (green-numbered steps in #E9FEF2 ellipses). Vertical scrolling
  * shows a custom #E9FEF2 scrollbar (RN's native indicator can't be tinted).
  */
-export const MealPlanCard = memo(function MealPlanCard({ day }: MealPlanCardProps) {
+export function MealPlanCard({ day }: MealPlanCardProps) {
   const { meal } = day;
 
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -136,9 +136,9 @@ export const MealPlanCard = memo(function MealPlanCard({ day }: MealPlanCardProp
       )}
     </View>
   );
-});
+}
 
-const MetaItem = memo(function MetaItem({
+function MetaItem({
   icon,
   label,
 }: {
@@ -153,7 +153,7 @@ const MetaItem = memo(function MetaItem({
       </Text>
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   card: {

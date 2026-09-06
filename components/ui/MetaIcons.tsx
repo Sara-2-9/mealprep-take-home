@@ -1,4 +1,3 @@
-import { memo } from "react";
 import Svg, { Path } from "react-native-svg";
 import { MEAL_PLAN } from "../../lib/theme";
 
@@ -20,7 +19,7 @@ const STROKE = {
   fill: "none",
 } as const;
 
-export const ClockIcon = memo(function ClockIcon({ size = 16 }: MetaIconProps) {
+export function ClockIcon({ size = 16 }: MetaIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path
@@ -29,9 +28,9 @@ export const ClockIcon = memo(function ClockIcon({ size = 16 }: MetaIconProps) {
       />
     </Svg>
   );
-});
+}
 
-export const ServingsIcon = memo(function ServingsIcon({ size = 16 }: MetaIconProps) {
+export function ServingsIcon({ size = 16 }: MetaIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path
@@ -40,9 +39,9 @@ export const ServingsIcon = memo(function ServingsIcon({ size = 16 }: MetaIconPr
       />
     </Svg>
   );
-});
+}
 
-export const CashIcon = memo(function CashIcon({ size = 16 }: MetaIconProps) {
+export function CashIcon({ size = 16 }: MetaIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path
@@ -51,4 +50,4 @@ export const CashIcon = memo(function CashIcon({ size = 16 }: MetaIconProps) {
       />
     </Svg>
   );
-});
+}

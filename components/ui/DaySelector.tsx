@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { MEAL_PLAN, WEEK_DAYS } from "../../lib/theme";
@@ -15,7 +15,7 @@ interface DaySelectorProps {
  * Active: black bg, white text. Inactive: white bg, 1px surface border.
  * NOTE: the Figma file swaps Wed/Thu; we keep calendar order.
  */
-export const DaySelector = memo(function DaySelector({
+export function DaySelector({
   selectedIndex,
   onSelect,
   disabled = false,
@@ -33,9 +33,9 @@ export const DaySelector = memo(function DaySelector({
       ))}
     </View>
   );
-});
+}
 
-const DayCell = memo(function DayCell({
+function DayCell({
   label,
   active,
   disabled,
@@ -72,7 +72,7 @@ const DayCell = memo(function DayCell({
       </Text>
     </Pressable>
   );
-});
+}
 
 const styles = StyleSheet.create({
   row: {
