@@ -6,7 +6,7 @@ import { MEAL_PLAN, WEEK_DAYS } from "../../lib/theme";
 interface DaySelectorProps {
   selectedIndex: number;
   onSelect: (index: number) => void;
-  /** Disables interaction while the plan is loading */
+  /** Disables interaction (used only in the error state) */
   disabled?: boolean;
 }
 

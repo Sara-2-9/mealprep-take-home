@@ -59,7 +59,11 @@ export default function MealPlanScreen() {
           <DaySelector
             selectedIndex={selectedDay}
             onSelect={selectDay}
-            disabled={status !== "ready"}
+            // Stay interactive while streaming: the pager is swipeable
+            // (cards + skeletons), so the selector must drive it too —
+            // disabling one input but not the other breaks consistency.
+            // Disabled only in the error state, where the pager is gone.
+            disabled={status === "error"}
           />
         </View>
       </View>

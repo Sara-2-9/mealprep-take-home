@@ -23,9 +23,11 @@ import { CTAButton } from "../components/ui/cta-button";
  * so on any device height the emojis stay glued around the hero instead of
  * anchoring to the container top. Canvas → stage conversion: origin (16,160).
  *
- * The hero is centered on the bounding box of the emoji cluster (computed
- * from EMOJIS below, so the two can never drift apart) — not on the stage
- * rect, which would leave it optically low-right of the emoji ring.
+ * The raw Figma scatter is asymmetric (cluster bbox center sits ~15px left
+ * and ~8px above the stage center), so we re-center the cluster's bounding
+ * box on the stage rect and center the hero on the stage: composition
+ * center ≡ stage center ≡ screen center, horizontally and vertically.
+ * Everything is computed from EMOJIS, so the pieces can never drift apart.
  */
 const STAGE = { width: 353, height: 400 } as const;
 const EMOJI_BOX = 46; // emoji layout box, see styles.emoji
@@ -40,22 +42,30 @@ const EMOJIS: { char: string; top: number; left: number; delay: number }[] = [
   { char: "🍆", top: 485 - 160, left: 174 - 16, delay: 2400 },
 ];
 
-const clusterCenter = {
-  x:
-    (Math.min(...EMOJIS.map((e) => e.left)) +
-      Math.max(...EMOJIS.map((e) => e.left)) +
-      EMOJI_BOX) /
-    2,
-  y:
-    (Math.min(...EMOJIS.map((e) => e.top)) +
-      Math.max(...EMOJIS.map((e) => e.top)) +
-      EMOJI_BOX) /
-    2,
+const clusterBBox = {
+  minLeft: Math.min(...EMOJIS.map((e) => e.left)),
+  maxRight: Math.max(...EMOJIS.map((e) => e.left)) + EMOJI_BOX,
+  minTop: Math.min(...EMOJIS.map((e) => e.top)),
+  maxBottom: Math.max(...EMOJIS.map((e) => e.top)) + EMOJI_BOX,
 };
+const CLUSTER_OFFSET = {
+  x:
+    (STAGE.width - (clusterBBox.maxRight - clusterBBox.minLeft)) / 2 -
+    clusterBBox.minLeft,
+  y:
+    (STAGE.height - (clusterBBox.maxBottom - clusterBBox.minTop)) / 2 -
+    clusterBBox.minTop,
+};
+const CENTERED_EMOJIS = EMOJIS.map((e) => ({
+  ...e,
+  left: e.left + CLUSTER_OFFSET.x,
+  top: e.top + CLUSTER_OFFSET.y,
+}));
+
 const HERO = {
   size: 200,
-  left: clusterCenter.x - 100,
-  top: clusterCenter.y - 100,
+  left: (STAGE.width - 200) / 2,
+  top: (STAGE.height - 200) / 2,
 } as const;
 
 function FloatingEmoji({
@@ -99,7 +109,7 @@ export default function LanderScreen() {
 
       <View style={styles.heroArea}>
         <View style={styles.stage}>
-          {EMOJIS.map((e) => (
+          {CENTERED_EMOJIS.map((e) => (
             <FloatingEmoji key={e.char} {...e} />
           ))}
           <Image
