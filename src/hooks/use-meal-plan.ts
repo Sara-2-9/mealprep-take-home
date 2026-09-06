@@ -22,8 +22,8 @@ interface CacheEntry {
 /** Keeps the generated plan when navigating away and back within a session */
 let cache: CacheEntry | null = null;
 
-/** Progressive rendering: partial snapshots flush to state at ~4 fps max */
-const PARTIAL_FLUSH_MS = 250;
+/** Progressive rendering: partial snapshots flush to state at ~10 fps max */
+const PARTIAL_FLUSH_MS = 100;
 
 /**
  * Business logic for screen 05 — weekly meal plan.
@@ -69,9 +69,9 @@ export function useMealPlan() {
       { budget, dietaryNeeds, nutritionalGoals },
       {
         onPartial: (partial) => {
-          // Throttle: the stream emits a snapshot per few tokens; re-rendering
-          // 7 cards per snapshot would waste frames. Trailing chunks are
-          // covered by the final setPlan below.
+          // Throttle: the smoothed stream emits a snapshot per word;
+          // re-rendering 7 cards per snapshot would waste frames. Trailing
+          // chunks are covered by the final setPlan below.
           const now = Date.now();
           if (cancelled || now - lastPartialFlush.current < PARTIAL_FLUSH_MS) {
             return;

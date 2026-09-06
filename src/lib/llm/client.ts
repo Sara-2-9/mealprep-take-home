@@ -3,6 +3,7 @@ import {
   generateText,
   NoOutputGeneratedError,
   Output,
+  smoothStream,
   streamText,
   type DeepPartial,
   type ModelMessage,
@@ -152,6 +153,22 @@ function createOpenAIStreamer(apiKey: string): PlanStreamer {
       output: outputSpec(),
       temperature: 0.7,
       maxRetries: 2,
+      // Structured-output deltas need JSON-aware smoothing: smoothStream's
+      // default "word" mode waits for /\S+\s+/ — but compact JSON structure
+      // has almost no whitespace, so whole segments accumulated into
+      // macro-blocks. This regex releases a chunk at every structural char
+      // (object/array/colon/quote boundaries) and at whitespace, so prose
+      // flows word-by-word and structure char-by-char at a steady cadence
+      // (see ai-sdk.dev/docs/reference/ai-sdk-core/smooth-stream). Guarded:
+      // the transform needs globalThis.TransformStream.
+      ...(typeof TransformStream !== "undefined"
+        ? {
+            experimental_transform: smoothStream({
+              delayInMs: 8,
+              chunking: /[{}\[\],:"]|\s+/,
+            }),
+          }
+        : {}),
     });
     return {
       partials: result.partialOutputStream,
