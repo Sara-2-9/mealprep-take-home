@@ -115,6 +115,22 @@ describe("generateMealPlan", () => {
     ).toBe(true);
   });
 
+  test("rejects plans with empty/symbol-only steps, then throws", async () => {
+    const seen: ModelMessage[][] = [];
+    const generate: PlanGenerator = async (messages) => {
+      seen.push(messages);
+      const plan = makeValidPlan();
+      // Only 1 valid step left after sanitizing Monday lunch
+      plan.days[0].meals[1].steps = ["Cook", "", " , "];
+      return plan.days;
+    };
+    const error = await generateMealPlan(REQUEST, { generate }).catch((e) => e);
+    expect(seen).toHaveLength(3); // two retries, then give up
+    expect(error).toBeInstanceOf(MealPlanError);
+    expect(error.code).toBe("invalid-plan");
+    expect(error.message).toContain("fewer than 3 valid steps");
+  });
+
   test("rejects plans that don't contain exactly 7 days", async () => {
     const generate: PlanGenerator = async () => VALID().days.slice(0, 6);
     const error = await generateMealPlan(REQUEST, { generate }).catch((e) => e);

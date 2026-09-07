@@ -106,6 +106,8 @@ export function buildMealPlanMessages({
     "  per 100g) and Nutri-Score support them.",
     "- NEVER use a product whose allergens conflict with the dietary needs.",
     "- Steps are plain instructions WITHOUT leading numbers (numbering is UI).",
+    "- Every step must be a complete cooking instruction — never leave",
+    "  a step empty or with symbols only.",
     "- Vary cuisines and departments across the week; avoid repeating mains.",
     "- Vary meals across the day: breakfast should be lighter, lunch medium,",
     "  dinner the most substantial.",

@@ -194,4 +194,11 @@ describe("priceDay (per streamed element)", () => {
     expect(unknownProductIds).toEqual(["0000000000000"]);
     expect(day.meals[0].ingredients[0].name).toBe("0000000000000");
   });
+
+  test("drops empty and symbols-only steps, trims the rest", () => {
+    const llmDay = makeValidPlan().days[0];
+    llmDay.meals[0].steps = ["  Boil pasta  ", "", " , ", "[]", "Serve!"];
+    const { day } = priceDay(llmDay);
+    expect(day.meals[0].steps).toEqual(["Boil pasta", "Serve!"]);
+  });
 });

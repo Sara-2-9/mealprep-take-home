@@ -90,6 +90,12 @@ describe("buildMealPlanMessages", () => {
     expect(content).toContain("15–45 minutes");
   });
 
+  test("system prompt requires complete, non-empty steps", () => {
+    const [system] = buildMealPlanMessages(BASE);
+    const content = system.content as string;
+    expect(content).toContain("complete cooking instruction");
+  });
+
   test("system prompt teaches variety with headroom and ≥2 meals per pack", () => {
     const [system] = buildMealPlanMessages(BASE);
     const content = system.content as string;

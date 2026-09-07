@@ -199,6 +199,18 @@ export function validatePlan(plan: WeeklyPlan, budget: number): string | null {
   // over to next week's pantry, so a product used once is not a rejection
   // reason as long as the pantry total fits the budget. singleUseProducts()
   // stays exported for the future leftovers feature.
+  for (const day of plan.days) {
+    for (const meal of day.meals) {
+      // Steps were sanitized at pricing: fewer than 3 left means the model
+      // emitted empty / symbols-only steps.
+      if (meal.steps.length < 3) {
+        return (
+          `${day.day} ${meal.type} has fewer than 3 valid steps — every ` +
+          `step must be a complete cooking instruction`
+        );
+      }
+    }
+  }
   return null;
 }
 

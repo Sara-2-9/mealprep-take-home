@@ -12,6 +12,15 @@ import type { LLMDayPlan, LLMPlanMeal, LLMWeeklyPlan } from "./schema";
 
 const SERVINGS = 2;
 
+/** A step is renderable only if it contains at least one letter. */
+const HAS_LETTER = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
+
+/** Trimmed step, or null when empty / symbols-only. */
+export function cleanStep(step: string): string | null {
+  const trimmed = step.trim();
+  return HAS_LETTER.test(trimmed) ? trimmed : null;
+}
+
 /** Round to euro cents. */
 export function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -144,7 +153,12 @@ export function priceDay(llmDay: LLMDayPlan): PricedDay {
       servings: SERVINGS,
       pricePerServing,
       ingredients,
-      steps: llmMeal.steps,
+      // Sanitize: the UI never renders empty / symbols-only steps, even
+      // mid-stream before final validation. validatePlan rejects meals
+      // left with fewer than 3 valid steps, so this can't hide bad plans.
+      steps: llmMeal.steps
+        .map((s) => cleanStep(s))
+        .filter((s): s is string => s !== null),
     };
   });
   return {
