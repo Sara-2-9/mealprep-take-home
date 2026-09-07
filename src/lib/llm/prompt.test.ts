@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { buildMealPlanMessages, buildRetryMessage } from "./prompt";
 
 const BASE = {
-  budget: 80,
+  budget: 120,
   dietaryNeeds: [] as never[],
   nutritionalGoals: [] as never[],
 };
@@ -72,12 +72,29 @@ describe("buildMealPlanMessages", () => {
       (unrestricted.content as string).length,
     );
   });
+
+  test("system prompt includes 3 meals per day instructions", () => {
+    const [system] = buildMealPlanMessages(BASE);
+    const content = system.content as string;
+    expect(content).toContain("THREE meals per day");
+    expect(content).toContain("breakfast");
+    expect(content).toContain("lunch");
+    expect(content).toContain("dinner");
+  });
+
+  test("system prompt includes time constraints per meal type", () => {
+    const [system] = buildMealPlanMessages(BASE);
+    const content = system.content as string;
+    expect(content).toContain("5–15 minutes");
+    expect(content).toContain("15–30 minutes");
+    expect(content).toContain("15–45 minutes");
+  });
 });
 
 describe("buildRetryMessage", () => {
   test("carries the rejection reason back to the model", () => {
-    const msg = buildRetryMessage("weekly cost €99 exceeds the €80 budget");
+    const msg = buildRetryMessage("weekly cost €99 exceeds the €120 budget");
     expect(msg.role).toBe("user");
-    expect(msg.content as string).toContain("€99 exceeds the €80 budget");
+    expect(msg.content as string).toContain("€99 exceeds the €120 budget");
   });
 });

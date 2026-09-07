@@ -4,7 +4,7 @@ import type { Product } from "../types";
 import type { DietaryNeed, NutritionalGoal } from "../../state/flow-store";
 
 /**
- * Prompt construction for the meal-plan LLM workflow.
+ * Prompt construction for the meal-plan LLM workflow (v2: 3 meals/day).
  * The basket keeps the ingredient list compact (department variety,
  * budget-friendly, goal-ranked) so the whole catalog never hits the prompt.
  * Basket lines carry macros, Nutri-Score and allergens so the model can
@@ -71,13 +71,16 @@ export function buildMealPlanMessages({
 
   const system = [
     "You are the meal-planning engine of MealPrep, an app that builds weekly",
-    "dinner plans from a real supermarket catalog (Esselunga, Italy).",
+    "meal plans from a real supermarket catalog (Esselunga, Italy).",
     "You reply ONLY with a JSON array of day objects matching the provided",
     "schema — no wrapper object, no prose.",
     "",
     "Rules:",
-    "- Exactly 7 days (Monday…Sunday), one dinner recipe per day.",
-    "- Recipes must be simple home cooking, 15–45 minutes, 2 servings.",
+    "- Exactly 7 days (Monday…Sunday), THREE meals per day:",
+    "  - breakfast: quick recipes, 5–15 minutes, simple and fast.",
+    "  - lunch: medium recipes, 15–30 minutes, satisfying midday meals.",
+    "  - dinner: main recipes, 15–45 minutes, more elaborate evening meals.",
+    "- All meals are for 2 servings.",
     "- Ingredients MUST come from the provided catalog list: reference each",
     "  with its exact productId only — names are resolved locally by the app.",
     '- For each ingredient set `amount` (human-readable, e.g. "400g") and',
@@ -93,6 +96,8 @@ export function buildMealPlanMessages({
     "- NEVER use a product whose allergens conflict with the dietary needs.",
     "- Steps are plain instructions WITHOUT leading numbers (numbering is UI).",
     "- Vary cuisines and departments across the week; avoid repeating mains.",
+    "- Vary meals across the day: breakfast should be lighter, lunch medium,",
+    "  dinner the most substantial.",
   ].join("\n");
 
   const user = [

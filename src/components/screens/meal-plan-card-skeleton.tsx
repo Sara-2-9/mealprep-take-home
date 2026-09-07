@@ -11,8 +11,8 @@ import { MEAL_PLAN } from "../../lib/theme";
 import { useColors } from "../../lib/colors";
 
 /**
- * Loading state of the day card — mirrors the skeleton design in the
- * original Figma frame (surface pill bars 289x16) with a soft pulse.
+ * Loading state of the day card (v2: 3 meals).
+ * Shows skeleton blocks for each meal section with a pulsing animation.
  */
 export function MealPlanCardSkeleton() {
   const colors = useColors();
@@ -31,24 +31,40 @@ export function MealPlanCardSkeleton() {
   return (
     <View style={[styles.card, { backgroundColor: colors.card }]}>
       <Animated.View style={[styles.content, pulse]}>
+        {/* Day name skeleton */}
         <Bar width={120} height={26} color={colors.surface} />
+
+        {/* Meal 1 skeleton */}
         <View style={styles.mealBlock}>
-          <Bar width={220} height={18} color={colors.surface} />
-          <Bar width={255} height={14} color={colors.surface} />
+          <Bar width={80} height={14} color={colors.surface} />
+          <Bar width={200} height={16} color={colors.surface} />
+          <View style={styles.section}>
+            <Bar width={70} height={12} color={colors.surface} />
+            <Bar color={colors.surface} />
+            <Bar color={colors.surface} />
+          </View>
         </View>
-        <View style={styles.section}>
-          <Bar width={100} height={16} color={colors.surface} />
-          <Bar color={colors.surface} />
-          <Bar color={colors.surface} />
-          <Bar color={colors.surface} />
-          <Bar color={colors.surface} />
+
+        {/* Meal 2 skeleton */}
+        <View style={styles.mealBlock}>
+          <Bar width={60} height={14} color={colors.surface} />
+          <Bar width={180} height={16} color={colors.surface} />
+          <View style={styles.section}>
+            <Bar width={70} height={12} color={colors.surface} />
+            <Bar color={colors.surface} />
+            <Bar color={colors.surface} />
+          </View>
         </View>
-        <View style={styles.section}>
-          <Bar width={70} height={16} color={colors.surface} />
-          <Bar color={colors.surface} />
-          <Bar color={colors.surface} />
-          <Bar color={colors.surface} />
-          <Bar color={colors.surface} />
+
+        {/* Meal 3 skeleton */}
+        <View style={styles.mealBlock}>
+          <Bar width={70} height={14} color={colors.surface} />
+          <Bar width={220} height={16} color={colors.surface} />
+          <View style={styles.section}>
+            <Bar width={70} height={12} color={colors.surface} />
+            <Bar color={colors.surface} />
+            <Bar color={colors.surface} />
+          </View>
         </View>
       </Animated.View>
     </View>
@@ -86,10 +102,11 @@ const styles = StyleSheet.create({
     gap: MEAL_PLAN.cardGap,
   },
   mealBlock: {
-    gap: 10,
+    gap: 8,
   },
   section: {
-    gap: 12,
+    gap: 8,
+    marginTop: 4,
   },
   barFull: {
     alignSelf: "stretch",

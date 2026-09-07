@@ -57,3 +57,43 @@ export function CashIcon({ size = 16 }: MetaIconProps) {
     </Svg>
   );
 }
+
+/**
+ * Meal-type icons (16x16) — used in the MealItem header to visually
+ * distinguish breakfast, lunch, and dinner.
+ */
+export function BreakfastIcon({ size = 16 }: MetaIconProps) {
+  const stroke = useStroke();
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16">
+      <Path
+        d="M2 12h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H2v8ZM2 12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1M11 3v2m-2-1h4"
+        {...stroke}
+      />
+    </Svg>
+  );
+}
+
+export function LunchIcon({ size = 16 }: MetaIconProps) {
+  const stroke = useStroke();
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16">
+      <Path
+        d="M2 12h12M3 12V7a5 5 0 0 1 10 0v5M8 3v2m-3 0h6"
+        {...stroke}
+      />
+    </Svg>
+  );
+}
+
+export function DinnerIcon({ size = 16 }: MetaIconProps) {
+  const stroke = useStroke();
+  return (
+    <Svg width={size} height={size} viewBox="0 0 16 16">
+      <Path
+        d="M2 12h12M3 12V7a5 5 0 0 1 10 0v5M8 3v10m-3-3 3 3 3-3"
+        {...stroke}
+      />
+    </Svg>
+  );
+}

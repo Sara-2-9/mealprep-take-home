@@ -9,10 +9,9 @@ import type { DietaryNeed, NutritionalGoal } from "../state/flow-store";
  * goals act as a preference score used when ranking the basket.
  */
 
-/** Departments never used for dinner planning */
+/** Departments never used for meal planning (breakfast items come from "colazione") */
 const NON_MEAL_DEPARTMENTS = new Set([
   "bevande",
-  "colazione",
   "infanzia",
   "snack",
   "vini-birre",

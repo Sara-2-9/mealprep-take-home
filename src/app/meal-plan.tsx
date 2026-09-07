@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import { DaySelector } from "../components/ui/day-selector";
@@ -18,9 +19,10 @@ import { MEAL_PLAN, CONTENT_WIDTH, SCREEN_PADDING_X, WEEK_DAYS_FULL } from "../l
 import { useColors } from "../lib/colors";
 
 /**
- * Screen 05 — Weekly meal plan. Green background (unchanged in dark mode),
- * "Bon appetit!" title, estimated-cost card, day selector and a horizontal
- * day-card pager. Final screen of the flow: no back button, no CTA.
+ * Screen 05 — Weekly meal plan (v2: 3 meals/day).
+ * Green background (unchanged in dark mode), "Bon appetit!" title,
+ * estimated-cost card, day selector and a horizontal day-card pager.
+ * Final screen of the flow: no back button, no CTA.
  * The pager is an RN Animated.ScrollView: `scrollX` (native driver) feeds
  * the per-card parallax and the sliding day indicator; the swipe → active
  * day sync runs in the Animated.event listener (see use-meal-plan).
@@ -28,6 +30,7 @@ import { useColors } from "../lib/colors";
 export default function MealPlanScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const navigation = useNavigation();
   const {
     status,
     plan,
@@ -41,6 +44,22 @@ export default function MealPlanScreen() {
     scrollX,
     pagerPadding,
   } = useMealPlan();
+
+  // Disable swipe-back gesture on ALL parent navigators
+  useEffect(() => {
+    let parent = navigation.getParent();
+    while (parent) {
+      parent.setOptions({ gestureEnabled: false });
+      parent = parent.getParent();
+    }
+    return () => {
+      let p = navigation.getParent();
+      while (p) {
+        p.setOptions({ gestureEnabled: true });
+        p = p.getParent();
+      }
+    };
+  }, [navigation]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + (MEAL_PLAN.titleTop - 62) }]}>
@@ -95,10 +114,6 @@ export default function MealPlanScreen() {
             selectedIndex={selectedDay}
             onSelect={selectDay}
             scrollX={scrollX}
-            // Stay interactive while streaming: the pager is swipeable
-            // (cards + skeletons), so the selector must drive it too —
-            // disabling one input but not the other breaks consistency.
-            // Disabled only in the error state, where the pager is gone.
             disabled={status === "error"}
           />
         </View>
@@ -114,8 +129,6 @@ export default function MealPlanScreen() {
             ref={pagerRef}
             horizontal
             showsHorizontalScrollIndicator={false}
-            // snapToInterval (not pagingEnabled): cards are 337pt wide on a
-            // 393pt viewport, so paging must snap by card stride, not screen
             snapToInterval={MEAL_PLAN.cardStride}
             decelerationRate="fast"
             disableIntervalMomentum
@@ -265,7 +278,7 @@ function ErrorCard({ onRetry }: { onRetry: () => void }) {
         className="font-promo"
         style={[styles.errorText, { color: colors.textSecondary }]}
       >
-        We couldn't generate your meal plan. Check your connection and try again.
+        {"We couldn't generate your meal plan. Check your connection and try again."}
       </Text>
       <Pressable
         accessibilityRole="button"

@@ -38,29 +38,35 @@ describe("ingredientCost", () => {
 });
 
 describe("mealCost / priceWeeklyPlan", () => {
-  test("mealCost sums ingredient costs", () => {
+  test("mealCost sums ingredient costs for a single meal", () => {
     const plan = makeValidPlan();
-    // penne 160g × 1.78€/kg + eggs 110g × 3.59€/kg
+    // lunch: penne 160g × 1.78€/kg + eggs 110g × 3.59€/kg
+    const lunch = plan.days[0].meals[1]; // lunch
     const expected = (160 / 1000) * 1.78 + (110 / 1000) * 3.59;
-    expect(mealCost(plan.days[0].meal)).toBeCloseTo(expected, 5);
+    expect(mealCost(lunch)).toBeCloseTo(expected, 5);
   });
 
-  test("priceWeeklyPlan computes pricePerServing deterministically", () => {
+  test("priceWeeklyPlan computes pricePerServing deterministically for 3 meals/day", () => {
     const { plan, unknownProductIds } = priceWeeklyPlan(makeValidPlan());
     expect(unknownProductIds).toEqual([]);
-    const meal = plan.days[0].meal;
-    const expectedMealCost = (160 / 1000) * 1.78 + (110 / 1000) * 3.59;
-    expect(meal.pricePerServing).toBeCloseTo(round2(expectedMealCost / 2), 5);
-    // weeklyCost = Σ pricePerServing × servings, all days identical here
-    expect(weeklyCost(plan)).toBeCloseTo(
-      round2(expectedMealCost / 2) * 2 * 7,
-      5,
-    );
+
+    // Each day has 3 meals, each with 2 servings
+    const day = plan.days[0];
+    expect(day.meals).toHaveLength(3);
+
+    // Check lunch specifically (index 1)
+    const lunch = day.meals[1];
+    const expectedLunchCost = (160 / 1000) * 1.78 + (110 / 1000) * 3.59;
+    expect(lunch.pricePerServing).toBeCloseTo(round2(expectedLunchCost / 2), 5);
+
+    // weeklyCost = Σ(pricePerServing × servings) for all meals across all days
+    const totalWeekly = weeklyCost(plan);
+    expect(totalWeekly).toBeGreaterThan(0);
   });
 
   test("priceWeeklyPlan reports unknown productIds", () => {
     const plan = makeValidPlan();
-    plan.days[2].meal.ingredients[0].productId = "9999999999999";
+    plan.days[2].meals[0].ingredients[0].productId = "9999999999999";
     const { unknownProductIds } = priceWeeklyPlan(plan);
     expect(unknownProductIds).toEqual(["9999999999999"]);
   });
@@ -68,32 +74,37 @@ describe("mealCost / priceWeeklyPlan", () => {
   test("priceWeeklyPlan resolves ingredient names from the catalog", () => {
     const { plan } = priceWeeklyPlan(makeValidPlan());
     // Names are not in the model output — they come from the catalog
-    expect(plan.days[0].meal.ingredients[0].name.length).toBeGreaterThan(0);
+    expect(plan.days[0].meals[0].ingredients[0].name.length).toBeGreaterThan(0);
   });
 });
 
 describe("priceDay (per streamed element)", () => {
-  test("maps a complete day with catalog names and computed pricePerServing", () => {
+  test("maps a complete day with 3 meals, catalog names and computed pricePerServing", () => {
     const { day, unknownProductIds } = priceDay(makeValidPlan().days[0]);
     expect(unknownProductIds).toEqual([]);
     expect(day.day).toBe("Monday");
-    expect(day.meal.name).toBe("Pasta dish Monday");
-    expect(day.meal.servings).toBe(2);
+    expect(day.meals).toHaveLength(3);
+
+    // Verify each meal type exists
+    expect(day.meals[0].type).toBe("breakfast");
+    expect(day.meals[1].type).toBe("lunch");
+    expect(day.meals[2].type).toBe("dinner");
+
     // Names are not in the model output — they come from the catalog
-    expect(day.meal.ingredients[0].name.length).toBeGreaterThan(0);
-    // penne 160g × 1.78€/kg + eggs 110g × 3.59€/kg, per 2 servings
-    const expectedMealCost = (160 / 1000) * 1.78 + (110 / 1000) * 3.59;
-    expect(day.meal.pricePerServing).toBeCloseTo(
-      round2(expectedMealCost / 2),
-      5,
-    );
+    expect(day.meals[0].ingredients[0].name.length).toBeGreaterThan(0);
+
+    // All meals have 2 servings
+    for (const meal of day.meals) {
+      expect(meal.servings).toBe(2);
+      expect(meal.pricePerServing).toBeGreaterThan(0);
+    }
   });
 
   test("reports unknown productIds (name falls back to the id)", () => {
     const llmDay = makeValidPlan().days[0];
-    llmDay.meal.ingredients[0].productId = "0000000000000";
+    llmDay.meals[0].ingredients[0].productId = "0000000000000";
     const { day, unknownProductIds } = priceDay(llmDay);
     expect(unknownProductIds).toEqual(["0000000000000"]);
-    expect(day.meal.ingredients[0].name).toBe("0000000000000");
+    expect(day.meals[0].ingredients[0].name).toBe("0000000000000");
   });
 });

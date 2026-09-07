@@ -1,9 +1,19 @@
-import { useRef, useState } from "react";
-import { Animated, View, Text, StyleSheet } from "react-native";
-import type { DayPlan } from "../../lib/meal-plan";
+import { useState, useCallback, useEffect } from "react";
+import {
+  Animated,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+} from "react-native";
+import type { DayPlan, PlanMeal, MealType } from "../../lib/meal-plan";
 import { MEAL_PLAN } from "../../lib/theme";
-import { useColors } from "../../lib/colors";
-import { ClockIcon, ServingsIcon, CashIcon } from "../ui/meta-icons";
+import { useColors, type Colors } from "../../lib/colors";
+import {
+  BreakfastIcon,
+  LunchIcon,
+  DinnerIcon,
+} from "../ui/meta-icons";
 
 interface MealPlanCardProps {
   day: DayPlan;
@@ -12,20 +22,35 @@ interface MealPlanCardProps {
 /** Ingredient pill (fixed palette from the spec, both modes) */
 const PILL = { background: "#DDF5E3", text: "#174D25" } as const;
 
+/** Meal type labels for display */
+const MEAL_TYPE_LABELS: Record<MealType, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+};
+
+/** Meal type icons */
+function MealTypeIcon({ type, size = 16 }: { type: MealType; size?: number }) {
+  switch (type) {
+    case "breakfast":
+      return <BreakfastIcon size={size} />;
+    case "lunch":
+      return <LunchIcon size={size} />;
+    case "dinner":
+      return <DinnerIcon size={size} />;
+  }
+}
+
 /**
- * Screen 05 day card (Figma "Frame 31") — 337pt sheet, top corners r=24,
- * bleeding to the bottom screen edge; padding 24 (bottom 48).
- * Content: day name → meal title → meta row → Ingredients (green pills,
- * "amount · name") → Recipe (numbered steps, ink number on surface circle).
- * Vertical scrolling shows a custom primary-green scrollbar (RN's native
- * indicator can't be tinted). Dark mode: #121612 card, white text.
+ * Screen 05 day card (v2: 3 meals per day).
+ * Vertical list of expandable MealItem components. All meals are expanded
+ * by default; the user can collapse individual meals.
  */
 export function MealPlanCard({ day }: MealPlanCardProps) {
-  const { meal } = day;
   const colors = useColors();
 
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const indicatorOpacity = useRef(new Animated.Value(0)).current;
+  const [scrollY] = useState(() => new Animated.Value(0));
+  const [indicatorOpacity] = useState(() => new Animated.Value(0));
   const [contentH, setContentH] = useState(0);
   const [viewH, setViewH] = useState(0);
 
@@ -81,76 +106,14 @@ export function MealPlanCard({ day }: MealPlanCardProps) {
           {day.day}
         </Text>
 
-        <Text
-          className="font-promo-semibold"
-          style={[styles.mealName, { color: colors.text }]}
-          numberOfLines={2}
-        >
-          {meal.name}
-        </Text>
-        <View style={styles.metaRow}>
-          <MetaItem icon={<ClockIcon />} label={`${meal.prepTimeMinutes} min`} />
-          <MetaItem icon={<ServingsIcon />} label={`${meal.servings} servings`} />
-          <MetaItem
-            icon={<CashIcon />}
-            label={`€${meal.pricePerServing.toFixed(2)} / serving`}
+        {day.meals.map((meal, index) => (
+          <MealItem
+            key={meal.type}
+            meal={meal}
+            colors={colors}
+            animationDelay={index * 500}
           />
-        </View>
-
-        <Text
-          className="font-promo-semibold"
-          style={[styles.sectionTitle, { color: colors.text }]}
-        >
-          Ingredients
-        </Text>
-        <View style={styles.ingredientList}>
-          {meal.ingredients.map((ingredient, index) => (
-            <View
-              key={`${ingredient.productId}-${index}`}
-              style={styles.ingredientPill}
-            >
-              <Text
-                className="font-promo"
-                style={styles.ingredientText}
-                numberOfLines={1}
-              >
-                {ingredient.amount} · {ingredient.name}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <Text
-          className="font-promo-semibold"
-          style={[styles.sectionTitle, { color: colors.text }]}
-        >
-          Recipe
-        </Text>
-        <View style={styles.stepList}>
-          {meal.steps.map((step, index) => (
-            <View key={index} style={styles.stepRow}>
-              <View
-                style={[
-                  styles.stepNumber,
-                  { backgroundColor: colors.surface },
-                ]}
-              >
-                <Text
-                  className="font-promo-semibold"
-                  style={[styles.stepNumberText, { color: colors.text }]}
-                >
-                  {index + 1}
-                </Text>
-              </View>
-              <Text
-                className="font-promo"
-                style={[styles.stepText, { color: colors.text }]}
-              >
-                {step}
-              </Text>
-            </View>
-          ))}
-        </View>
+        ))}
       </Animated.ScrollView>
 
       {scrollable && (
@@ -171,24 +134,156 @@ export function MealPlanCard({ day }: MealPlanCardProps) {
   );
 }
 
-function MetaItem({
-  icon,
-  label,
+/**
+ * Single meal item — expandable/collapsible with animated content height.
+ * Shows a header with icon, name, meta, and an expand arrow.
+ * When expanded, shows ingredients and recipe steps.
+ */
+function MealItem({
+  meal,
+  colors,
+  animationDelay,
 }: {
-  icon: React.ReactNode;
-  label: string;
+  meal: PlanMeal;
+  colors: Colors;
+  animationDelay: number;
 }) {
-  const colors = useColors();
+  const [expanded, setExpanded] = useState(true);
+  const [contentHeight] = useState(() => new Animated.Value(1));
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+
+  // Entrance animation
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      delay: animationDelay,
+      useNativeDriver: true,
+    }).start();
+  }, [animationDelay, fadeAnim]);
+
+  // Expand/collapse animation
+  const toggle = useCallback(() => {
+    const toValue = expanded ? 0 : 1;
+    Animated.timing(contentHeight, {
+      toValue,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => setExpanded((prev) => !prev));
+  }, [expanded, contentHeight]);
+
+  const rotate = contentHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  const maxHeight = contentHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 800],
+  });
+
   return (
-    <View style={styles.metaItem}>
-      {icon}
-      <Text
-        className="font-promo"
-        style={[styles.metaText, { color: colors.textSecondary }]}
-      >
-        {label}
-      </Text>
-    </View>
+    <Animated.View
+      style={[
+        styles.mealContainer,
+        { opacity: fadeAnim },
+      ]}
+    >
+      {/* Header — always visible, tap to expand/collapse */}
+      <Pressable onPress={toggle} style={styles.mealHeader}>
+        <View style={styles.mealHeaderLeft}>
+          <MealTypeIcon type={meal.type} />
+          <View style={styles.mealHeaderInfo}>
+            <Text
+              className="font-promo-semibold"
+              style={[styles.mealTypeName, { color: colors.text }]}
+            >
+              {MEAL_TYPE_LABELS[meal.type]}
+            </Text>
+            <Text
+              className="font-promo"
+              style={[styles.mealMeta, { color: colors.textSecondary }]}
+            >
+              {meal.prepTimeMinutes}min · {meal.servings} servings · €
+              {meal.pricePerServing.toFixed(2)}/serving
+            </Text>
+          </View>
+        </View>
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <Text style={[styles.expandArrow, { color: colors.textSecondary }]}>
+            ▼
+          </Text>
+        </Animated.View>
+      </Pressable>
+
+      {/* Collapsible content */}
+      <Animated.View style={{ maxHeight, overflow: "hidden" }}>
+        <View style={styles.mealContent}>
+          <Text
+            className="font-promo-semibold"
+            style={[styles.mealName, { color: colors.text }]}
+            numberOfLines={2}
+          >
+            {meal.name}
+          </Text>
+
+          <Text
+            className="font-promo-semibold"
+            style={[styles.sectionTitle, { color: colors.text }]}
+          >
+            Ingredients
+          </Text>
+          <View style={styles.ingredientList}>
+            {meal.ingredients.map((ingredient, index) => (
+              <View
+                key={`${ingredient.productId}-${index}`}
+                style={styles.ingredientPill}
+              >
+                <Text
+                  className="font-promo"
+                  style={styles.ingredientText}
+                  numberOfLines={1}
+                >
+                  {ingredient.amount} · {ingredient.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text
+            className="font-promo-semibold"
+            style={[styles.sectionTitle, { color: colors.text }]}
+          >
+            Recipe
+          </Text>
+          <View style={styles.stepList}>
+            {meal.steps.map((step, index) => (
+              <View key={index} style={styles.stepRow}>
+                <View
+                  style={[
+                    styles.stepNumber,
+                    { backgroundColor: colors.surface },
+                  ]}
+                >
+                  <Text
+                    className="font-promo-semibold"
+                    style={[styles.stepNumberText, { color: colors.text }]}
+                  >
+                    {index + 1}
+                  </Text>
+                </View>
+                <Text
+                  className="font-promo"
+                  style={[styles.stepText, { color: colors.text }]}
+                >
+                  {step}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
@@ -200,17 +295,55 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   content: {
-    padding: MEAL_PLAN.cardPadding, // 24
+    padding: MEAL_PLAN.cardPadding,
     paddingBottom: 48,
   },
   dayName: {
     fontSize: 24,
     lineHeight: 33,
+    marginBottom: 16,
+  },
+  mealContainer: {
+    marginBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(0,0,0,0.08)",
+    paddingBottom: 12,
+  },
+  mealHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  mealHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  mealHeaderInfo: {
+    flex: 1,
+  },
+  mealTypeName: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  mealMeta: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  expandArrow: {
+    fontSize: 10,
+    marginLeft: 8,
+  },
+  mealContent: {
+    paddingTop: 4,
   },
   mealName: {
-    marginTop: 28,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
   },
   metaRow: {
     flexDirection: "row",
@@ -228,53 +361,53 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   sectionTitle: {
-    marginTop: 28,
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 6,
   },
   ingredientList: {
-    gap: 8,
-    marginTop: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 12,
   },
   ingredientPill: {
-    alignSelf: "flex-start",
     backgroundColor: PILL.background,
     borderRadius: 999,
     borderCurve: "continuous",
-    minHeight: 22,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    minHeight: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     justifyContent: "center",
   },
   ingredientText: {
     color: PILL.text,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
   },
   stepList: {
-    gap: 14,
-    marginTop: 12,
+    gap: 8,
   },
   stepRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
+    gap: 8,
   },
   stepNumber: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
   stepNumberText: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 10,
+    lineHeight: 14,
   },
   stepText: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 17,
   },
   scrollbar: {
     position: "absolute",

@@ -4,11 +4,13 @@ import type { DayPlan, WeeklyPlan } from "../meal-plan";
 import type { LLMDayPlan, LLMPlanMeal, LLMWeeklyPlan } from "./schema";
 
 /**
- * Deterministic cost computation for LLM-generated plans.
+ * Deterministic cost computation for LLM-generated plans (v2: 3 meals/day).
  * The model declares ingredient quantities in grams; prices come from the
  * catalog unit prices (€/kg, €/l) — never from the model itself. This makes
  * the budget validation real instead of trusting a self-reported number.
  */
+
+const SERVINGS = 2;
 
 /** Round to euro cents. */
 export function round2(value: number): number {
@@ -61,40 +63,45 @@ export interface PricedDay {
   unknownProductIds: string[];
 }
 
+/** Resolve a single LLM ingredient to a priced PlanIngredient. */
+function resolveIngredient(ing: { productId: string; amount: string; grams: number }) {
+  const product = getProductById(ing.productId);
+  return {
+    productId: ing.productId,
+    name: product?.name ?? ing.productId,
+    amount: ing.amount,
+    grams: ing.grams,
+  };
+}
+
 /**
  * Converts one raw LLM day into the app-facing DayPlan, computing
- * pricePerServing = Σ(grams × €/kg) / servings. Ingredient names are not
- * part of the model output (output slimming): they are resolved here from
- * the catalog by productId. Used both per streamed element and per day of
- * the complete plan.
+ * pricePerServing = Σ(grams × €/kg) / servings for each meal.
+ * Ingredient names are resolved from the catalog by productId (output slimming).
  */
 export function priceDay(llmDay: LLMDayPlan): PricedDay {
   const unknown: string[] = [];
-  const ingredients = llmDay.meal.ingredients.map((ing) => {
-    const product = getProductById(ing.productId);
-    if (!product) {
-      unknown.push(ing.productId);
-    }
+  const meals = llmDay.meals.map((llmMeal) => {
+    const ingredients = llmMeal.ingredients.map((ing) => {
+      const product = getProductById(ing.productId);
+      if (!product) {
+        unknown.push(ing.productId);
+      }
+      return resolveIngredient(ing);
+    });
+    const pricePerServing = round2(mealCost(llmMeal) / SERVINGS);
     return {
-      productId: ing.productId,
-      name: product?.name ?? ing.productId,
-      amount: ing.amount,
-      grams: ing.grams,
+      type: llmMeal.type,
+      name: llmMeal.name,
+      prepTimeMinutes: llmMeal.prepTimeMinutes,
+      servings: SERVINGS,
+      pricePerServing,
+      ingredients,
+      steps: llmMeal.steps,
     };
   });
-  const pricePerServing = round2(mealCost(llmDay.meal) / llmDay.meal.servings);
   return {
-    day: {
-      day: llmDay.day,
-      meal: {
-        name: llmDay.meal.name,
-        prepTimeMinutes: llmDay.meal.prepTimeMinutes,
-        servings: llmDay.meal.servings,
-        pricePerServing,
-        ingredients,
-        steps: llmDay.meal.steps,
-      },
-    },
+    day: { day: llmDay.day, meals },
     unknownProductIds: unknown,
   };
 }

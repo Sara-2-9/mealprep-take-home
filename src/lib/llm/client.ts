@@ -99,7 +99,7 @@ function outputSpec() {
     maxItems: 7,
     name: "weekly_meal_plan",
     description:
-      "7-day dinner plan (Monday…Sunday) built exclusively from the provided supermarket catalog",
+      "7-day meal plan (Monday…Sunday) with breakfast, lunch, and dinner — built exclusively from the provided supermarket catalog",
   });
 }
 

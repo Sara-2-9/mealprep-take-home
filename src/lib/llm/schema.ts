@@ -10,6 +10,9 @@ import { z } from "zod";
  * The model declares quantities in grams; the app recomputes prices
  * deterministically from catalog unit prices (`lib/llm/cost.ts`), so no
  * price field is part of the model output.
+ *
+ * v2: 3 meals per day (breakfast, lunch, dinner). Servings are always 2
+ * and omitted from the output to save tokens.
  */
 
 export const WEEK_DAY_NAMES = [
@@ -21,6 +24,9 @@ export const WEEK_DAY_NAMES = [
   "Saturday",
   "Sunday",
 ] as const;
+
+export const MEAL_TYPES = ["breakfast", "lunch", "dinner"] as const;
+export type MealType = (typeof MEAL_TYPES)[number];
 
 export const planIngredientSchema = z.object({
   productId: z.string().describe("Exact product id from the catalog basket"),
@@ -39,9 +45,10 @@ export const planIngredientSchema = z.object({
 });
 
 export const planMealSchema = z.object({
+  type: z.enum(MEAL_TYPES).describe("Meal type: breakfast, lunch, or dinner"),
   name: z.string(),
   prepTimeMinutes: z.number(),
-  servings: z.number(),
+  // servings omitted from output — always 2, computed server-side
   // Capped to keep the streamed output (and thus time-to-full-plan) small.
   ingredients: z.array(planIngredientSchema).min(2).max(10),
   steps: z.array(z.string()).min(3).max(8),
@@ -49,7 +56,7 @@ export const planMealSchema = z.object({
 
 export const dayPlanSchema = z.object({
   day: z.enum(WEEK_DAY_NAMES),
-  meal: planMealSchema,
+  meals: z.array(planMealSchema).min(3).max(3).describe("Exactly 3 meals: breakfast, lunch, dinner"),
 });
 
 export const weeklyPlanSchema = z.object({

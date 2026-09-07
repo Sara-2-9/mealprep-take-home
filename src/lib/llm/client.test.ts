@@ -12,24 +12,28 @@ import { makeValidPlan } from "./schema.test";
 import type { LLMWeeklyPlan } from "./schema";
 
 const REQUEST = {
-  budget: 80,
+  budget: 120,
   dietaryNeeds: [] as never[],
   nutritionalGoals: [] as never[],
 };
 
-/** Valid fixture: ~€4.97/week, well under an €80 budget. */
+/** Valid fixture: ~€14.90/week, well under a €120 budget. */
 const VALID = makeValidPlan;
 
 /** Same meals but 900 kg of pasta per day — blows any budget. */
 function overBudgetPlan(): LLMWeeklyPlan {
   const plan = structuredClone(makeValidPlan());
-  for (const day of plan.days) day.meal.ingredients[0].grams = 900_000;
+  for (const day of plan.days) {
+    for (const meal of day.meals) {
+      meal.ingredients[0].grams = 900_000;
+    }
+  }
   return plan;
 }
 
 function planWithUnknownId(): LLMWeeklyPlan {
   const plan = makeValidPlan();
-  plan.days[0].meal.ingredients[0].productId = "0000000000000";
+  plan.days[0].meals[0].ingredients[0].productId = "0000000000000";
   return plan;
 }
 
@@ -43,9 +47,12 @@ describe("generateMealPlan", () => {
     const result = await generateMealPlan(REQUEST, { generate });
     expect(calls).toHaveLength(1);
     expect(result.plan.days).toHaveLength(7);
-    // penne 160g×1.78 + eggs 110g×3.59 = 0.6797 €/meal → ×7 days
-    expect(result.totalCost).toBeCloseTo(round7(), 2);
-    expect(result.plan.days[0].meal.pricePerServing).toBeGreaterThan(0);
+    // Each day has 3 meals
+    for (const day of result.plan.days) {
+      expect(day.meals).toHaveLength(3);
+    }
+    expect(result.totalCost).toBeCloseTo(expectedWeeklyCost(), 1);
+    expect(result.plan.days[0].meals[0].pricePerServing).toBeGreaterThan(0);
   });
 
   test("retries once with feedback when the plan exceeds the budget", async () => {
@@ -61,8 +68,8 @@ describe("generateMealPlan", () => {
     expect(seen[1]).toHaveLength(4);
     expect(seen[1][2].role).toBe("assistant");
     expect(seen[1][3].role).toBe("user");
-    expect(seen[1][3].content as string).toContain("exceeds the €80 budget");
-    expect(result.totalCost).toBeCloseTo(round7(), 2);
+    expect(seen[1][3].content as string).toContain("exceeds the €120 budget");
+    expect(result.totalCost).toBeCloseTo(expectedWeeklyCost(), 1);
   });
 
   test("rejects plans with hallucinated productIds, then throws", async () => {
@@ -137,10 +144,11 @@ describe("generateMealPlan (streaming, per-day elements)", () => {
     expect(received).toHaveLength(7);
     expect(received.map((r) => r.index)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     // Each streamed day is complete and priced — renderable as a full card
-    expect(received[0].day.meal.pricePerServing).toBeGreaterThan(0);
-    expect(received[0].day.meal.ingredients[0].name.length).toBeGreaterThan(0);
+    expect(received[0].day.meals).toHaveLength(3);
+    expect(received[0].day.meals[0].pricePerServing).toBeGreaterThan(0);
+    expect(received[0].day.meals[0].ingredients[0].name.length).toBeGreaterThan(0);
     expect(result.plan.days).toHaveLength(7);
-    expect(result.totalCost).toBeCloseTo(round7(), 2);
+    expect(result.totalCost).toBeCloseTo(expectedWeeklyCost(), 1);
   });
 
   test("works without an onDay callback", async () => {
@@ -169,7 +177,7 @@ describe("validatePlan", () => {
   test("accepts a priced plan under budget", () => {
     const generate: PlanGenerator = async () => VALID().days;
     return generateMealPlan(REQUEST, { generate }).then(({ plan }) => {
-      expect(validatePlan(plan, 80)).toBeNull();
+      expect(validatePlan(plan, 120)).toBeNull();
     });
   });
 
@@ -198,10 +206,19 @@ describe("validatePlan", () => {
   });
 });
 
-function round7(): number {
-  const perMeal = (160 / 1000) * 1.78 + (110 / 1000) * 3.59;
-  const perServing = Math.round((perMeal / 2) * 100) / 100;
-  return Math.round(perServing * 2 * 7 * 100) / 100;
+/**
+ * Compute expected weekly cost from the valid fixture.
+ * Each day: breakfast (80g penne + 55g eggs) + lunch (160g penne + 110g eggs)
+ *          + dinner (200g penne + 150g eggs)
+ */
+function expectedWeeklyCost(): number {
+  const pennePerGram = 1.78 / 1000;
+  const eggPerGram = 3.59 / 1000;
+  const breakfastCost = 80 * pennePerGram + 55 * eggPerGram;
+  const lunchCost = 160 * pennePerGram + 110 * eggPerGram;
+  const dinnerCost = 200 * pennePerGram + 150 * eggPerGram;
+  const costPerServing = (breakfastCost + lunchCost + dinnerCost) / 2;
+  return Math.round(costPerServing * 2 * 7 * 100) / 100;
 }
 
 afterEach(() => {

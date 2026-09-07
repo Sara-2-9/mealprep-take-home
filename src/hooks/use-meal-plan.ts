@@ -17,13 +17,14 @@ interface CacheEntry {
 let cache: CacheEntry | null = null;
 
 /**
- * Business logic for screen 05 — weekly meal plan.
+ * Business logic for screen 05 — weekly meal plan (v2: 3 meals/day).
  * Orchestrates the LLM workflow (streaming generate → validate → retry) and
  * the day pager (selector ↔ horizontal scroll sync).
  *
  * While the plan streams in, `streamedDays` exposes each day as a COMPLETE,
  * fully priced DayPlan the moment its element finishes (null = still
- * pending → skeleton), so the UI fills in one card at a time.
+ * pending → skeleton). Within each day, meals appear sequentially with a
+ * 500ms delay each for a progressive reveal effect.
  *
  * Pager scroll is tracked by `scrollX` (RN Animated.Value, native driver):
  * it feeds the per-card parallax (opacity/scale) and the sliding day
@@ -57,7 +58,7 @@ export function useMealPlan() {
   const [selectedDay, setSelectedDay] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
   /** Pager scroll position — drives parallax and the sliding day indicator */
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const [scrollX] = useState(() => new Animated.Value(0));
   const lastScrolledIndex = useRef(0);
   const { width } = useWindowDimensions();
 
@@ -69,13 +70,31 @@ export function useMealPlan() {
       { budget, dietaryNeeds, nutritionalGoals },
       {
         onDay: (day, index) => {
-          // Each element is a complete, priced day: drop it into its slot.
           if (cancelled) return;
+          // Each element is a complete day with 3 meals.
+          // First show the day with empty meals array (skeletons).
           setStreamedDays((prev) => {
             const base = prev ?? Array<DayPlan | null>(7).fill(null);
             const next = [...base];
-            next[index] = day;
+            next[index] = { day: day.day, meals: [] };
             return next;
+          });
+          // Sequentially reveal each meal with a 500ms delay.
+          day.meals.forEach((meal, mealIndex) => {
+            setTimeout(() => {
+              if (cancelled) return;
+              setStreamedDays((prev) => {
+                if (!prev) return prev;
+                const next = [...prev];
+                const existing = next[index];
+                if (!existing) return next;
+                next[index] = {
+                  ...existing,
+                  meals: [...existing.meals, meal],
+                };
+                return next;
+              });
+            }, (mealIndex + 1) * 500);
           });
         },
       },
