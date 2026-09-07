@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Fragment } from "react";
 import {
   Animated,
   View,
@@ -13,6 +13,7 @@ import {
   BreakfastIcon,
   LunchIcon,
   DinnerIcon,
+  ChevronDownIcon,
 } from "../ui/meta-icons";
 
 interface MealPlanCardProps {
@@ -107,12 +108,21 @@ export function MealPlanCard({ day }: MealPlanCardProps) {
         </Text>
 
         {day.meals.map((meal, index) => (
-          <MealItem
-            key={meal.type}
-            meal={meal}
-            colors={colors}
-            animationDelay={index * 500}
-          />
+          <Fragment key={meal.type}>
+            <MealItem
+              meal={meal}
+              colors={colors}
+              animationDelay={index * 500}
+            />
+            {index < day.meals.length - 1 && (
+              <View
+                style={[
+                  styles.separator,
+                  { backgroundColor: colors.textSecondary },
+                ]}
+              />
+            )}
+          </Fragment>
         ))}
       </Animated.ScrollView>
 
@@ -210,9 +220,7 @@ function MealItem({
           </View>
         </View>
         <Animated.View style={{ transform: [{ rotate }] }}>
-          <Text style={[styles.expandArrow, { color: colors.textSecondary }]}>
-            ▼
-          </Text>
+          <ChevronDownIcon />
         </Animated.View>
       </Pressable>
 
@@ -304,10 +312,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   mealContainer: {
-    marginBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.08)",
-    paddingBottom: 12,
+    paddingBottom: 4,
+  },
+  /** Hairline between meals — same gray as the meta details (textSecondary) */
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 12,
   },
   mealHeader: {
     flexDirection: "row",
@@ -333,10 +343,6 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 2,
   },
-  expandArrow: {
-    fontSize: 10,
-    marginLeft: 8,
-  },
   mealContent: {
     paddingTop: 4,
   },
@@ -344,21 +350,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
-  },
-  metaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 8,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    lineHeight: 17,
   },
   sectionTitle: {
     fontSize: 12,

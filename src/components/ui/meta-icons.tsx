@@ -1,10 +1,15 @@
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
 import { useColors } from "../../lib/colors";
 
 /**
  * 16x16 meta icons for screen 05 — paths extracted 1:1 from the Figma
- * exports in `design/svg` (clock / user-user-03 / cash).
- * Stroke: themed ink at 60% opacity, width 1.333, round caps/joins.
+ * exports in `design/svg` (clock / user-user-03 / cash / chevron-big).
+ * Stroke: themed ink at 60% opacity, width 1.333, round caps/joins
+ * (chevron-big keeps its Figma 1.667 width on a 20x20 grid).
+ *
+ * NOTE: design/svg breakfast/lunch/dinner are embedded raster PNGs, not
+ * stroke vectors, so they can't be tinted — the meal icons below are
+ * stroke redraws (mug / bowl / cloche) in the same themed style.
  */
 interface MetaIconProps {
   size?: number;
@@ -60,14 +65,16 @@ export function CashIcon({ size = 16 }: MetaIconProps) {
 
 /**
  * Meal-type icons (16x16) — used in the MealItem header to visually
- * distinguish breakfast, lunch, and dinner.
+ * distinguish breakfast, lunch, and dinner. Stroke redraws in the same
+ * themed style as clock/cash: mug with steam (breakfast), soup bowl
+ * with steam (lunch), serving cloche (dinner).
  */
 export function BreakfastIcon({ size = 16 }: MetaIconProps) {
   const stroke = useStroke();
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path
-        d="M2 12h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H2v8ZM2 12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1M11 3v2m-2-1h4"
+        d="M4 7h7v3a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7ZM11 8h.8a1.7 1.7 0 0 1 0 3.4H11M6.5 5.2c0-.9.9-.9.9-1.9M8.8 5.2c0-.9.9-.9.9-1.9M3 14.5h9"
         {...stroke}
       />
     </Svg>
@@ -79,7 +86,7 @@ export function LunchIcon({ size = 16 }: MetaIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path
-        d="M2 12h12M3 12V7a5 5 0 0 1 10 0v5M8 3v2m-3 0h6"
+        d="M2.5 9.5h11c0 2.6-2.5 4.5-5.5 4.5s-5.5-1.9-5.5-4.5ZM6.5 6.8c0-.9.9-.9.9-1.9M9.3 6.8c0-.9.9-.9.9-1.9"
         {...stroke}
       />
     </Svg>
@@ -91,8 +98,32 @@ export function DinnerIcon({ size = 16 }: MetaIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16 16">
       <Path
-        d="M2 12h12M3 12V7a5 5 0 0 1 10 0v5M8 3v10m-3-3 3 3 3-3"
+        d="M3.5 11a4.5 4.5 0 0 1 9 0M8 4.7v1.1M2.5 11h11M3.5 13.8h9"
         {...stroke}
+      />
+      <Circle cx="8" cy="4" r="0.9" {...stroke} />
+    </Svg>
+  );
+}
+
+/**
+ * Expand/collapse chevron — Figma `chevron-big_chevron-big-left` geometry
+ * transposed to point down, on its original 20x20 grid (width 1.667).
+ * Color adapted to the other icons: themed ink at 60% opacity.
+ * Rotate 180° for the expanded (up) state.
+ */
+export function ChevronDownIcon({ size = 16 }: MetaIconProps) {
+  const colors = useColors();
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20">
+      <Path
+        d="M15 7.5a25.5 25.5 0 0 0-4.574 4.848.67.67 0 0 1-.85 0A25.5 25.5 0 0 1 5 7.5"
+        stroke={colors.metaIcon}
+        strokeOpacity={0.6}
+        strokeWidth={1.667}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
       />
     </Svg>
   );
