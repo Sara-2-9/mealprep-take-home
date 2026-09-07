@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useWindowDimensions, type ScrollView } from "react-native";
-import {
-  runOnJS,
-  useAnimatedScrollHandler,
-  useSharedValue,
-} from "react-native-reanimated";
+import { Animated, useWindowDimensions, type ScrollView } from "react-native";
 import { useFlowStore } from "../state/flow-store";
 import { generateMealPlan } from "../lib/llm/client";
 import type { DayPlan, WeeklyPlan } from "../lib/meal-plan";
@@ -30,12 +25,12 @@ let cache: CacheEntry | null = null;
  * fully priced DayPlan the moment its element finishes (null = still
  * pending → skeleton), so the UI fills in one card at a time.
  *
- * Pager sync runs on the UI thread: `scrollHandler` derives the active day
- * index inside a Reanimated worklet during the swipe itself (not at
- * momentum end) and only hops to JS when the index actually changes.
- * Selector taps use the plain ScrollView `scrollTo` imperative API (the
- * reliable direction; Reanimated's `scrollTo` on an animated ref proved
- * flaky for tap-to-scroll).
+ * Pager scroll is tracked by `scrollX` (RN Animated.Value, native driver):
+ * it feeds the per-card parallax (opacity/scale) and the sliding day
+ * indicator. `scrollHandler` is an Animated.event whose listener derives
+ * the active day index during the swipe itself (not at momentum end) and
+ * updates JS state only when the rounded index actually changes.
+ * Selector taps use the plain ScrollView `scrollTo` imperative API.
  *
  * Memoization is handled by the React Compiler (experiments.reactCompiler).
  * The generation effect is written so that correctness never depends on
@@ -61,7 +56,9 @@ export function useMealPlan() {
   );
   const [selectedDay, setSelectedDay] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
-  const lastScrolledIndex = useSharedValue(0);
+  /** Pager scroll position — drives parallax and the sliding day indicator */
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const lastScrolledIndex = useRef(0);
   const { width } = useWindowDimensions();
 
   useEffect(() => {
@@ -107,29 +104,34 @@ export function useMealPlan() {
   }, [status, requestKey, budget, dietaryNeeds, nutritionalGoals]);
 
   /**
-   * Pager swipe → day selector, in real time. Runs as a UI-thread worklet;
-   * crosses to JS only when the rounded index changes (≤7 distinct values).
+   * Pager swipe → scrollX (native driver) + day selector sync. The
+   * listener runs on the JS thread and updates state only when the rounded
+   * day index actually changes (≤7 distinct values).
    */
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      const index = Math.max(
-        0,
-        Math.min(
-          6,
-          Math.round(event.contentOffset.x / MEAL_PLAN.cardStride),
-        ),
-      );
-      if (index !== lastScrolledIndex.value) {
-        lastScrolledIndex.value = index;
-        runOnJS(setSelectedDay)(index);
-      }
+  const scrollHandler = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    {
+      useNativeDriver: true,
+      listener: (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+        const index = Math.max(
+          0,
+          Math.min(
+            6,
+            Math.round(event.nativeEvent.contentOffset.x / MEAL_PLAN.cardStride),
+          ),
+        );
+        if (index !== lastScrolledIndex.current) {
+          lastScrolledIndex.current = index;
+          setSelectedDay(index);
+        }
+      },
     },
-  });
+  );
 
   /** Day selector tap → scroll the pager (imperative ScrollView API) */
   const selectDay = (index: number) => {
     setSelectedDay(index);
-    lastScrolledIndex.value = index;
+    lastScrolledIndex.current = index;
     pagerRef.current?.scrollTo({ x: index * MEAL_PLAN.cardStride, animated: true });
   };
 
@@ -145,6 +147,7 @@ export function useMealPlan() {
     retry: () => setStatus("loading"),
     pagerRef,
     scrollHandler,
+    scrollX,
     /** Horizontal padding that centers the 337pt card with the Figma peek */
     pagerPadding: Math.max(
       MEAL_PLAN.cardPeek,

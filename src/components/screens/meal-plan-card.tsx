@@ -9,13 +9,16 @@ interface MealPlanCardProps {
   day: DayPlan;
 }
 
+/** Ingredient pill (fixed palette from the spec, both modes) */
+const PILL = { background: "#DDF5E3", text: "#174D25" } as const;
+
 /**
- * Screen 05 day card (Figma "Frame 31") — 337pt card, padding 24.
- * Content per the updated design (05_Weekly_meal_plan-Sara):
- * day name → meal title → meta row → Ingredients (green bullets) →
- * Recipe (green-numbered steps in tinted ellipses). Vertical scrolling
- * shows a custom primary-green scrollbar (RN's native indicator can't be
- * tinted). Dark mode: #121612 card, white text, #1E2B24 ellipses.
+ * Screen 05 day card (Figma "Frame 31") — 337pt sheet, top corners r=24,
+ * bleeding to the bottom screen edge; padding 24 (bottom 48).
+ * Content: day name → meal title → meta row → Ingredients (green pills,
+ * "amount · name") → Recipe (numbered steps, ink number on surface circle).
+ * Vertical scrolling shows a custom primary-green scrollbar (RN's native
+ * indicator can't be tinted). Dark mode: #121612 card, white text.
  */
 export function MealPlanCard({ day }: MealPlanCardProps) {
   const { meal } = day;
@@ -72,74 +75,76 @@ export function MealPlanCard({ day }: MealPlanCardProps) {
         onContentSizeChange={(_, h) => setContentH(h)}
       >
         <Text
-          className="font-promo-bold"
+          className="font-promo-semibold"
           style={[styles.dayName, { color: colors.text }]}
         >
           {day.day}
         </Text>
 
-        <View style={styles.mealBlock}>
-          <Text
-            className="font-promo-semibold"
-            style={[styles.mealName, { color: colors.text }]}
-          >
-            {meal.name}
-          </Text>
-          <View style={styles.metaRow}>
-            <MetaItem icon={<ClockIcon />} label={`${meal.prepTimeMinutes} min`} />
-            <MetaItem icon={<ServingsIcon />} label={`${meal.servings} servings`} />
-            <MetaItem
-              icon={<CashIcon />}
-              label={`€${meal.pricePerServing.toFixed(2)} / serving`}
-            />
-          </View>
+        <Text
+          className="font-promo-semibold"
+          style={[styles.mealName, { color: colors.text }]}
+          numberOfLines={2}
+        >
+          {meal.name}
+        </Text>
+        <View style={styles.metaRow}>
+          <MetaItem icon={<ClockIcon />} label={`${meal.prepTimeMinutes} min`} />
+          <MetaItem icon={<ServingsIcon />} label={`${meal.servings} servings`} />
+          <MetaItem
+            icon={<CashIcon />}
+            label={`€${meal.pricePerServing.toFixed(2)} / serving`}
+          />
         </View>
 
-        <View style={styles.section}>
-          <Text
-            className="font-promo-semibold"
-            style={[styles.sectionTitle, { color: colors.text }]}
-          >
-            Ingredients
-          </Text>
+        <Text
+          className="font-promo-semibold"
+          style={[styles.sectionTitle, { color: colors.text }]}
+        >
+          Ingredients
+        </Text>
+        <View style={styles.ingredientList}>
           {meal.ingredients.map((ingredient, index) => (
-            <View key={`${ingredient.productId}-${index}`} style={styles.bulletRow}>
-              <View style={[styles.bullet, { backgroundColor: colors.accent }]} />
+            <View
+              key={`${ingredient.productId}-${index}`}
+              style={styles.ingredientPill}
+            >
               <Text
                 className="font-promo"
-                style={[styles.bodyText, { color: colors.text }]}
+                style={styles.ingredientText}
+                numberOfLines={1}
               >
-                {ingredient.amount} {ingredient.name}
+                {ingredient.amount} · {ingredient.name}
               </Text>
             </View>
           ))}
         </View>
 
-        <View style={styles.section}>
-          <Text
-            className="font-promo-semibold"
-            style={[styles.sectionTitle, { color: colors.text }]}
-          >
-            Recipe
-          </Text>
+        <Text
+          className="font-promo-semibold"
+          style={[styles.sectionTitle, { color: colors.text }]}
+        >
+          Recipe
+        </Text>
+        <View style={styles.stepList}>
           {meal.steps.map((step, index) => (
             <View key={index} style={styles.stepRow}>
               <View
                 style={[
-                  styles.stepEllipse,
-                  { backgroundColor: colors.surfaceSelected },
+                  styles.stepNumber,
+                  { backgroundColor: colors.surface },
                 ]}
               >
                 <Text
                   className="font-promo-semibold"
-                  style={[styles.stepNumber, { color: colors.accent }]}
+                  style={[styles.stepNumberText, { color: colors.text }]}
                 >
                   {index + 1}
                 </Text>
               </View>
               <Text
                 className="font-promo"
-                style={[styles.bodyText, { color: colors.text }]}
+                style={[styles.stepText, { color: colors.text }]}
               >
                 {step}
               </Text>
@@ -189,30 +194,29 @@ function MetaItem({
 
 const styles = StyleSheet.create({
   card: {
-    width: MEAL_PLAN.cardWidth,
     flex: 1,
-    borderRadius: MEAL_PLAN.cardRadius,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: "hidden",
   },
   content: {
-    padding: MEAL_PLAN.cardPadding,
-    gap: MEAL_PLAN.cardGap,
+    padding: MEAL_PLAN.cardPadding, // 24
+    paddingBottom: 48,
   },
   dayName: {
     fontSize: 24,
-    lineHeight: 33.4,
-  },
-  mealBlock: {
-    gap: 4,
+    lineHeight: 33,
   },
   mealName: {
+    marginTop: 28,
     fontSize: 16,
-    lineHeight: 22.3,
+    lineHeight: 22,
   },
   metaRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginTop: 8,
   },
   metaItem: {
     flexDirection: "row",
@@ -221,48 +225,56 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    lineHeight: 16.9,
-  },
-  section: {
-    gap: 12,
+    lineHeight: 17,
   },
   sectionTitle: {
+    marginTop: 28,
     fontSize: 14,
-    lineHeight: 19.5,
+    lineHeight: 19,
   },
-  bulletRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingLeft: 4,
+  ingredientList: {
+    gap: 8,
+    marginTop: 12,
   },
-  bullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 8,
+  ingredientPill: {
+    alignSelf: "flex-start",
+    backgroundColor: PILL.background,
+    borderRadius: 999,
+    borderCurve: "continuous",
+    minHeight: 22,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    justifyContent: "center",
+  },
+  ingredientText: {
+    color: PILL.text,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  stepList: {
+    gap: 14,
+    marginTop: 12,
   },
   stepRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    paddingLeft: 4,
   },
-  stepEllipse: {
+  stepNumber: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepNumber: {
+  stepNumberText: {
     fontSize: 12,
     lineHeight: 16,
   },
-  bodyText: {
+  stepText: {
     flex: 1,
     fontSize: 14,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   scrollbar: {
     position: "absolute",

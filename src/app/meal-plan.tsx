@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Animated as RNAnimated } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -21,8 +21,9 @@ import { useColors } from "../lib/colors";
  * Screen 05 — Weekly meal plan. Green background (unchanged in dark mode),
  * "Bon appetit!" title, estimated-cost card, day selector and a horizontal
  * day-card pager. Final screen of the flow: no back button, no CTA.
- * The pager is an Animated.ScrollView: swipe → selector sync runs in a
- * Reanimated worklet on the UI thread (see use-meal-plan).
+ * The pager is an RN Animated.ScrollView: `scrollX` (native driver) feeds
+ * the per-card parallax and the sliding day indicator; the swipe → active
+ * day sync runs in the Animated.event listener (see use-meal-plan).
  */
 export default function MealPlanScreen() {
   const insets = useSafeAreaInsets();
@@ -37,6 +38,7 @@ export default function MealPlanScreen() {
     retry,
     pagerRef,
     scrollHandler,
+    scrollX,
     pagerPadding,
   } = useMealPlan();
 
@@ -86,6 +88,7 @@ export default function MealPlanScreen() {
           <DaySelector
             selectedIndex={selectedDay}
             onSelect={selectDay}
+            scrollX={scrollX}
             // Stay interactive while streaming: the pager is swipeable
             // (cards + skeletons), so the selector must drive it too —
             // disabling one input but not the other breaks consistency.
@@ -101,12 +104,17 @@ export default function MealPlanScreen() {
             <ErrorCard onRetry={retry} />
           </View>
         ) : (
-          <Animated.ScrollView
+          <RNAnimated.ScrollView
             ref={pagerRef}
             horizontal
             showsHorizontalScrollIndicator={false}
+            // snapToInterval (not pagingEnabled): cards are 337pt wide on a
+            // 393pt viewport, so paging must snap by card stride, not screen
             snapToInterval={MEAL_PLAN.cardStride}
             decelerationRate="fast"
+            disableIntervalMomentum
+            bounces={false}
+            directionalLockEnabled
             onScroll={scrollHandler}
             scrollEventThrottle={16}
             contentContainerStyle={{
@@ -117,22 +125,70 @@ export default function MealPlanScreen() {
             {/*
               Per-day streaming: while the plan generates, each day renders
               its complete card as soon as its element finishes; days still
-              pending keep the skeleton.
+              pending keep the skeleton. Every page gets the parallax.
             */}
             {status === "ready" && plan
-              ? plan.days.map((day) => <MealPlanCard key={day.day} day={day} />)
+              ? plan.days.map((day, index) => (
+                  <ParallaxPage key={day.day} scrollX={scrollX} index={index}>
+                    <MealPlanCard day={day} />
+                  </ParallaxPage>
+                ))
               : (streamedDays ?? WEEK_DAYS_FULL.map(() => null)).map(
-                  (dayPlan, index) =>
-                    dayPlan ? (
-                      <MealPlanCard key={dayPlan.day} day={dayPlan} />
-                    ) : (
-                      <MealPlanCardSkeleton key={WEEK_DAYS_FULL[index]} />
-                    ),
+                  (dayPlan, index) => (
+                    <ParallaxPage
+                      key={dayPlan?.day ?? WEEK_DAYS_FULL[index]}
+                      scrollX={scrollX}
+                      index={index}
+                    >
+                      {dayPlan ? (
+                        <MealPlanCard day={dayPlan} />
+                      ) : (
+                        <MealPlanCardSkeleton />
+                      )}
+                    </ParallaxPage>
+                  ),
                 )}
-          </Animated.ScrollView>
+          </RNAnimated.ScrollView>
         )}
       </View>
     </View>
+  );
+}
+
+/**
+ * Pager page wrapper — parallax driven by the shared `scrollX`:
+ * the centered card is full opacity/scale, neighbours dim and shrink.
+ */
+function ParallaxPage({
+  scrollX,
+  index,
+  children,
+}: {
+  scrollX: RNAnimated.Value;
+  index: number;
+  children: React.ReactNode;
+}) {
+  const inputRange = [
+    (index - 1) * MEAL_PLAN.cardStride,
+    index * MEAL_PLAN.cardStride,
+    (index + 1) * MEAL_PLAN.cardStride,
+  ];
+  const opacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.72, 1, 0.72],
+    extrapolate: "clamp",
+  });
+  const scale = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.96, 1, 0.96],
+    extrapolate: "clamp",
+  });
+  return (
+    <RNAnimated.View
+      style={[styles.page, { opacity, transform: [{ scale }] }]}
+    >
+      {children}
+    </RNAnimated.View>
   );
 }
 
@@ -256,7 +312,12 @@ const styles = StyleSheet.create({
   pagerArea: {
     flex: 1,
     marginTop: MEAL_PLAN.cardTop - MEAL_PLAN.dayRowTop - MEAL_PLAN.dayCellHeight, // 32
-    marginBottom: MEAL_PLAN.cardTop - MEAL_PLAN.dayRowTop - MEAL_PLAN.dayCellHeight, // 32, same as top
+    // No bottom margin: cards bleed to the screen edge (Figma cardTop 306 +
+    // cardHeight 546 = 852) — hence the top-only corner radius.
+  },
+  page: {
+    width: MEAL_PLAN.cardWidth,
+    alignSelf: "stretch",
   },
   errorWrap: {
     flex: 1,

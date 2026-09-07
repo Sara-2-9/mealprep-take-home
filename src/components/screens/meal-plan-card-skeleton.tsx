@@ -76,9 +76,9 @@ function Bar({
 
 const styles = StyleSheet.create({
   card: {
-    width: MEAL_PLAN.cardWidth,
     flex: 1,
-    borderRadius: MEAL_PLAN.cardRadius,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: "hidden",
   },
   content: {
