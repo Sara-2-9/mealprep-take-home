@@ -33,14 +33,17 @@ import { useColors } from "../lib/colors";
 const STAGE = { width: 353, height: 400 } as const;
 const EMOJI_BOX = 46; // emoji layout box, see styles.emoji
 
+// Figma canvas (393×852) → stage (353×400):
+// Bag Figma center (197, 412) → stage center (176.5, 200)
+// Scene origin: (20.5, 212)
 const EMOJIS: { char: string; top: number; left: number; delay: number }[] = [
-  { char: "🍎", top: 190 - 160, left: 48 - 16, delay: 0 },
-  { char: "🥩", top: 173 - 160, left: 214 - 16, delay: 400 },
-  { char: "🥕", top: 277 - 160, left: 292 - 16, delay: 800 },
-  { char: "🧀", top: 310 - 160, left: 16 - 16, delay: 1200 },
-  { char: "🫒", top: 428 - 160, left: 284 - 16, delay: 1600 },
-  { char: "🌽", top: 448 - 160, left: 53 - 16, delay: 2000 },
-  { char: "🍆", top: 485 - 160, left: 174 - 16, delay: 2400 },
+  { char: "🍎", top: 60, left: 51.5, delay: 0 },     // Figma (72, 272)
+  { char: "🥩", top: 43, left: 217.5, delay: 400 },  // Figma (238, 255)
+  { char: "🥕", top: 147, left: 295.5, delay: 800 }, // Figma (316, 359)
+  { char: "🧀", top: 180, left: 8.5, delay: 1200 },  // Figma (29, 392)
+  { char: "🫒", top: 298, left: 287.5, delay: 1600 },// Figma (308, 510)
+  { char: "🌽", top: 318, left: 56.5, delay: 2000 }, // Figma (77, 530)
+  { char: "🍆", top: 355, left: 177.5, delay: 2400 },// Figma (198, 567)
 ];
 
 const clusterBBox = {
@@ -66,7 +69,7 @@ const CENTERED_EMOJIS = EMOJIS.map((e) => ({
 const HERO = {
   size: 200,
   left: (STAGE.width - 200) / 2,
-  top: (STAGE.height - 200) / 2,
+  top: (STAGE.height - 240) / 2,
 } as const;
 
 function FloatingEmoji({

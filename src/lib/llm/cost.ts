@@ -17,6 +17,53 @@ export function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * Parse a catalog `quantity` string ("620 g", "1,5 l", "2 x 180 g", "140g")
+ * into grams (ml ≈ g for liquids, matching the cost convention).
+ * Returns null when the format is not a weight/volume (pieces, garbage).
+ */
+export function parsePackGrams(
+  quantity: string | undefined,
+): number | null {
+  if (!quantity) return null;
+  const q = quantity.trim().toLowerCase().replace(",", ".");
+  const toGrams = (n: number, unit: string): number | null => {
+    switch (unit) {
+      case "g":
+      case "gr":
+      case "grammi":
+        return n;
+      case "kg":
+        return n * 1000;
+      case "ml":
+      case "l":
+      case "lt":
+      case "litro":
+      case "litri":
+        return n * (unit === "ml" ? 1 : 1000);
+      case "cl":
+        return n * 10;
+      default:
+        return null;
+    }
+  };
+  const UNIT = "(kg|grammi|gr|g|cl|ml|lt|litri|litro|l)";
+  // Multi-pack: "2 x 180 g" → total grams
+  const multi = q.match(
+    new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*x\\s*(\\d+(?:\\.\\d+)?)\\s*${UNIT}`),
+  );
+  if (multi) {
+    const grams = toGrams(parseFloat(multi[2]), multi[3]);
+    return grams === null ? null : grams * parseFloat(multi[1]);
+  }
+  const single = q.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${UNIT}\\b`));
+  if (single) return toGrams(parseFloat(single[1]), single[2]);
+  // Bare number ("620") → assume grams
+  const bare = q.match(/^(\d+(?:\.\d+)?)$/);
+  if (bare) return parseFloat(bare[1]);
+  return null;
+}
+
 /** Cost of `grams` of a product in EUR. */
 function productCost(product: Product, grams: number): number {
   const unit = product.unitPrice;
@@ -118,4 +165,91 @@ export function priceWeeklyPlan(llmPlan: LLMWeeklyPlan): PricedPlan {
     return priced.day;
   });
   return { plan: { days }, unknownProductIds: [...unknown] };
+}
+
+export interface PantryItem {
+  productId: string;
+  name: string;
+  /** Whole packs charged (ceil of total grams used / pack size) */
+  packs: number;
+  /** Full pack price in EUR */
+  packPrice: number;
+  /** packs × packPrice, rounded to cents */
+  totalPrice: number;
+}
+
+/**
+ * Shopping list derived deterministically from the plan: distinct products
+ * in first-use order, each charged per whole pack. When the recipes need
+ * more than one pack holds, whole extra packs are charged.
+ */
+export function shoppingList(plan: WeeklyPlan): PantryItem[] {
+  const usedGrams = new Map<string, number>();
+  const order: string[] = [];
+  for (const day of plan.days) {
+    for (const meal of day.meals) {
+      for (const ing of meal.ingredients) {
+        if (!usedGrams.has(ing.productId)) order.push(ing.productId);
+        usedGrams.set(
+          ing.productId,
+          (usedGrams.get(ing.productId) ?? 0) + ing.grams,
+        );
+      }
+    }
+  }
+  return order.map((id) => {
+    const product = getProductById(id);
+    const packGrams = product ? parsePackGrams(product.quantity) : null;
+    const packs =
+      packGrams && packGrams > 0
+        ? Math.max(1, Math.ceil((usedGrams.get(id) ?? 0) / packGrams - 1e-9))
+        : 1;
+    const packPrice = product?.price.amount ?? 0;
+    return {
+      productId: id,
+      name: product?.name ?? id,
+      packs,
+      packPrice,
+      totalPrice: round2(packs * packPrice),
+    };
+  });
+}
+
+/**
+ * Weekly total = Σ whole-pack prices of distinct products: the actual money
+ * the user spends. Per-meal grams-based prices stay display-only.
+ */
+export function pantryCost(plan: WeeklyPlan): number {
+  return round2(
+    shoppingList(plan).reduce((sum, item) => sum + item.totalPrice, 0),
+  );
+}
+
+/**
+ * Products opened for a single meal only (distinct day+meal-type count < 2).
+ * Opening a pack for one meal is waste; the plan must reuse it or drop it.
+ * A product listed twice in the same meal counts once.
+ */
+export function singleUseProducts(
+  plan: WeeklyPlan,
+): { productId: string; name: string }[] {
+  const mealsByProduct = new Map<string, Set<string>>();
+  const names = new Map<string, string>();
+  for (const day of plan.days) {
+    for (const meal of day.meals) {
+      const key = `${day.day}|${meal.type}`;
+      for (const ing of meal.ingredients) {
+        if (!mealsByProduct.has(ing.productId)) {
+          mealsByProduct.set(ing.productId, new Set());
+          names.set(ing.productId, ing.name);
+        }
+        mealsByProduct.get(ing.productId)!.add(key);
+      }
+    }
+  }
+  const bad: { productId: string; name: string }[] = [];
+  for (const [id, meals] of mealsByProduct) {
+    if (meals.size < 2) bad.push({ productId: id, name: names.get(id) ?? id });
+  }
+  return bad;
 }

@@ -8,6 +8,7 @@ import {
   type PlanStreamer,
 } from "./client";
 import { weeklyCost, type DayPlan } from "../meal-plan";
+import { pantryCost } from "./cost";
 import { makeValidPlan } from "./schema.test";
 import type { LLMWeeklyPlan } from "./schema";
 
@@ -17,10 +18,13 @@ const REQUEST = {
   nutritionalGoals: [] as never[],
 };
 
-/** Valid fixture: ~€14.90/week, well under a €120 budget. */
+/**
+ * Valid fixture: pantry €14.92/week (penne 7 packs + eggs 11 packs),
+ * well under a €120 budget. Per-meal display stays grams-based.
+ */
 const VALID = makeValidPlan;
 
-/** Same meals but 900 kg of pasta per day — blows any budget. */
+/** Same meals but 900 kg of pasta per day — blows any pantry budget. */
 function overBudgetPlan(): LLMWeeklyPlan {
   const plan = structuredClone(makeValidPlan());
   for (const day of plan.days) {
@@ -51,7 +55,8 @@ describe("generateMealPlan", () => {
     for (const day of result.plan.days) {
       expect(day.meals).toHaveLength(3);
     }
-    expect(result.totalCost).toBeCloseTo(expectedWeeklyCost(), 1);
+    expect(result.totalCost).toBeCloseTo(14.92, 1);
+    expect(result.shoppingList).toHaveLength(2);
     expect(result.plan.days[0].meals[0].pricePerServing).toBeGreaterThan(0);
   });
 
@@ -69,7 +74,8 @@ describe("generateMealPlan", () => {
     expect(seen[1][2].role).toBe("assistant");
     expect(seen[1][3].role).toBe("user");
     expect(seen[1][3].content as string).toContain("exceeds the €120 budget");
-    expect(result.totalCost).toBeCloseTo(expectedWeeklyCost(), 1);
+    expect(seen[1][3].content as string).toContain("pantry cost");
+    expect(result.totalCost).toBeCloseTo(14.92, 1);
   });
 
   test("rejects plans with hallucinated productIds, then throws", async () => {
@@ -79,11 +85,34 @@ describe("generateMealPlan", () => {
       return planWithUnknownId().days;
     };
     const error = await generateMealPlan(REQUEST, { generate }).catch((e) => e);
-    expect(seen).toHaveLength(2); // one retry, then give up
+    expect(seen).toHaveLength(3); // two retries, then give up
     expect(error).toBeInstanceOf(MealPlanError);
     expect(error.code).toBe("invalid-plan");
     expect(error.message).toContain("unknown productIds");
     expect(error.message).toContain("0000000000000");
+  });
+
+  test("accepts single-use packs within budget (leftovers carry over)", async () => {
+    const calls: ModelMessage[][] = [];
+    const generate: PlanGenerator = async (messages) => {
+      calls.push(messages);
+      const plan = makeValidPlan();
+      // Ragù opened for Monday breakfast only: +1 pack, still under budget
+      plan.days[0].meals[0].ingredients[0] = {
+        productId: "8005360003335",
+        amount: "100g",
+        grams: 100,
+      };
+      return plan.days;
+    };
+    const result = await generateMealPlan(REQUEST, { generate });
+    expect(calls).toHaveLength(1); // no retry for single-use
+    // penne drops 3080g → 3000g (7 → 6 packs) + ragù 1 pack:
+    // 6×0.89 + 11×0.79 + 3.89 = 17.92
+    expect(result.totalCost).toBeCloseTo(17.92, 1);
+    expect(
+      result.shoppingList.some((i) => i.productId === "8005360003335"),
+    ).toBe(true);
   });
 
   test("rejects plans that don't contain exactly 7 days", async () => {
@@ -148,7 +177,10 @@ describe("generateMealPlan (streaming, per-day elements)", () => {
     expect(received[0].day.meals[0].pricePerServing).toBeGreaterThan(0);
     expect(received[0].day.meals[0].ingredients[0].name.length).toBeGreaterThan(0);
     expect(result.plan.days).toHaveLength(7);
-    expect(result.totalCost).toBeCloseTo(expectedWeeklyCost(), 1);
+    expect(result.totalCost).toBeCloseTo(14.92, 1);
+    expect(result.shoppingList.map((i) => i.productId).sort()).toEqual(
+      ["8003170094871", "8005121050271"].sort(),
+    );
   });
 
   test("works without an onDay callback", async () => {
@@ -198,28 +230,21 @@ describe("validatePlan", () => {
     );
   });
 
-  test("weeklyCost uses computed prices, not model claims", async () => {
-    const { plan, totalCost } = await generateMealPlan(REQUEST, {
+  test("totalCost uses pantry packs, not model claims", async () => {
+    const { plan, totalCost, shoppingList } = await generateMealPlan(REQUEST, {
       generate: async () => VALID().days,
     });
-    expect(totalCost).toBeCloseTo(weeklyCost(plan), 5);
+    expect(totalCost).toBeCloseTo(pantryCost(plan), 5);
+    // …while per-meal display stays grams-based
+    expect(weeklyCost(plan)).toBeGreaterThan(0);
+    expect(shoppingList.length).toBeGreaterThan(0);
   });
 });
 
 /**
- * Compute expected weekly cost from the valid fixture.
- * Each day: breakfast (80g penne + 55g eggs) + lunch (160g penne + 110g eggs)
- *          + dinner (200g penne + 150g eggs)
+ * Pantry cost of the valid fixture: penne 3080g/week → 7 × €0.89 packs,
+ * eggs 2205g/week → 11 × €0.79 packs.
  */
-function expectedWeeklyCost(): number {
-  const pennePerGram = 1.78 / 1000;
-  const eggPerGram = 3.59 / 1000;
-  const breakfastCost = 80 * pennePerGram + 55 * eggPerGram;
-  const lunchCost = 160 * pennePerGram + 110 * eggPerGram;
-  const dinnerCost = 200 * pennePerGram + 150 * eggPerGram;
-  const costPerServing = (breakfastCost + lunchCost + dinnerCost) / 2;
-  return Math.round(costPerServing * 2 * 7 * 100) / 100;
-}
 
 afterEach(() => {
   // no-op: placeholder for future global cleanup

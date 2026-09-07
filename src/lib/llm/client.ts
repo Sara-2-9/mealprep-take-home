@@ -7,8 +7,14 @@ import {
   type ModelMessage,
 } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { weeklyCost, type DayPlan, type WeeklyPlan } from "../meal-plan";
-import { priceDay, priceWeeklyPlan, round2 } from "./cost";
+import {
+  pantryCost,
+  priceDay,
+  priceWeeklyPlan,
+  shoppingList,
+  type PantryItem,
+} from "./cost";
+import type { DayPlan, WeeklyPlan } from "../meal-plan";
 import {
   dayPlanSchema,
   weeklyPlanSchema,
@@ -40,7 +46,9 @@ import {
  */
 
 const MODEL_ID = process.env.EXPO_PUBLIC_MEALPLAN_MODEL ?? "gpt-4o-mini";
-const MAX_ATTEMPTS = 2;
+// 3 attempts: pack-based planning is a harder task, the extra retry is cheap
+// next to a full 21-meal generation.
+const MAX_ATTEMPTS = 3;
 
 export class MealPlanError extends Error {
   constructor(
@@ -177,17 +185,29 @@ export function validatePlan(plan: WeeklyPlan, budget: number): string | null {
     if (days.has(day.day)) return `duplicate day "${day.day}"`;
     days.add(day.day);
   }
-  const total = weeklyCost(plan);
+  // Budget is pantry-based: whole packs the user must actually buy.
+  const list = shoppingList(plan);
+  const total = pantryCost(plan);
   if (total > budget) {
-    return `weekly cost €${total.toFixed(2)} exceeds the €${budget} budget`;
+    return (
+      `pantry cost €${total.toFixed(2)} (${list.length} packs) exceeds ` +
+      `the €${budget} budget — use fewer distinct products and reuse ` +
+      `opened packs across meals`
+    );
   }
+  // NOTE: single-use packs are soft-only (prompt guidance). Leftovers carry
+  // over to next week's pantry, so a product used once is not a rejection
+  // reason as long as the pantry total fits the budget. singleUseProducts()
+  // stays exported for the future leftovers feature.
   return null;
 }
 
 export interface MealPlanResult {
   plan: WeeklyPlan;
-  /** Weekly cost in EUR, computed from catalog prices */
+  /** Weekly total in EUR = Σ whole-pack prices of distinct products */
   totalCost: number;
+  /** Shopping list backing the total, in first-use order */
+  shoppingList: PantryItem[];
 }
 
 export interface GenerateMealPlanOptions {
@@ -248,7 +268,8 @@ export async function generateMealPlan(
     if (!rejection && priced) {
       return {
         plan: priced.plan,
-        totalCost: round2(weeklyCost(priced.plan)),
+        totalCost: pantryCost(priced.plan),
+        shoppingList: shoppingList(priced.plan),
       };
     }
     if (attempt === MAX_ATTEMPTS) {

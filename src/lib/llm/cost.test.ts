@@ -2,9 +2,13 @@ import { describe, expect, test } from "bun:test";
 import {
   ingredientCost,
   mealCost,
+  pantryCost,
+  parsePackGrams,
   priceDay,
   priceWeeklyPlan,
   round2,
+  shoppingList,
+  singleUseProducts,
 } from "./cost";
 import { makeValidPlan } from "./schema.test";
 import { weeklyCost } from "../meal-plan";
@@ -75,6 +79,89 @@ describe("mealCost / priceWeeklyPlan", () => {
     const { plan } = priceWeeklyPlan(makeValidPlan());
     // Names are not in the model output — they come from the catalog
     expect(plan.days[0].meals[0].ingredients[0].name.length).toBeGreaterThan(0);
+  });
+});
+
+describe("parsePackGrams", () => {
+  test("parses grams, kilos and liters", () => {
+    expect(parsePackGrams("620 g")).toBe(620);
+    expect(parsePackGrams("140g")).toBe(140);
+    expect(parsePackGrams("130 g.")).toBe(130);
+    expect(parsePackGrams("500 g -  17.6 oz")).toBe(500);
+    expect(parsePackGrams("1,5 l")).toBe(1500);
+    expect(parsePackGrams("190 g")).toBe(190);
+  });
+
+  test("parses multi-packs as total grams", () => {
+    expect(parsePackGrams("2 x 180 g")).toBe(360);
+  });
+
+  test("treats a bare number as grams", () => {
+    expect(parsePackGrams("620")).toBe(620);
+  });
+
+  test("returns null for pieces and garbage", () => {
+    expect(parsePackGrams("Uova")).toBeNull();
+    expect(parsePackGrams(undefined)).toBeNull();
+    expect(parsePackGrams("dadigratis")).toBeNull();
+  });
+});
+
+describe("shoppingList / pantryCost (whole packs)", () => {
+  test("charges one pack per distinct product, reused for free", () => {
+    const { plan } = priceWeeklyPlan(makeValidPlan());
+    const list = shoppingList(plan);
+    expect(list.map((i) => i.productId).sort()).toEqual(
+      ["8003170094871", "8005121050271"].sort(),
+    );
+    // penne 3080g / 500g → 7 packs × €0.89; eggs 2205g / 220g → 11 packs × €0.79
+    expect(list.find((i) => i.productId === "8005121050271")).toMatchObject({
+      packs: 7,
+      packPrice: 0.89,
+      totalPrice: 6.23,
+    });
+    expect(pantryCost(plan)).toBeCloseTo(14.92, 2);
+  });
+
+  test("charges a single pack when weekly usage fits", () => {
+    const { plan } = priceWeeklyPlan(makeValidPlan());
+    const single = {
+      days: [
+        { day: "Monday", meals: [plan.days[0].meals[1]] },
+      ],
+    };
+    // lunch only: penne 160g ≤ 500g, eggs 110g ≤ 220g → 1 pack each
+    const list = shoppingList(single as never);
+    expect(list.every((i) => i.packs === 1)).toBe(true);
+    expect(pantryCost(single as never)).toBeCloseTo(0.89 + 0.79, 2);
+  });
+});
+
+describe("singleUseProducts (every opened pack in ≥2 meals)", () => {
+  test("accepts the fixture where every product spans all 21 meals", () => {
+    const { plan } = priceWeeklyPlan(makeValidPlan());
+    expect(singleUseProducts(plan)).toEqual([]);
+  });
+
+  test("flags a product opened for a single meal", () => {
+    const { plan } = priceWeeklyPlan(makeValidPlan());
+    // Swap one ingredient of Monday breakfast for ragù (190 g pack)
+    plan.days[0].meals[0].ingredients[0] = {
+      productId: "8005360003335",
+      name: "Wild boar ragù",
+      amount: "100g",
+      grams: 100,
+    };
+    expect(singleUseProducts(plan)).toEqual([
+      { productId: "8005360003335", name: "Wild boar ragù" },
+    ]);
+  });
+
+  test("counts two ingredients in the same meal once", () => {
+    const { plan } = priceWeeklyPlan(makeValidPlan());
+    const meal = plan.days[0].meals[0];
+    meal.ingredients = [meal.ingredients[0], { ...meal.ingredients[0] }];
+    expect(singleUseProducts(plan)).toEqual([]);
   });
 });
 

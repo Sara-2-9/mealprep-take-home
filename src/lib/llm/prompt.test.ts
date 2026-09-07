@@ -89,6 +89,22 @@ describe("buildMealPlanMessages", () => {
     expect(content).toContain("15–30 minutes");
     expect(content).toContain("15–45 minutes");
   });
+
+  test("system prompt teaches variety with headroom and ≥2 meals per pack", () => {
+    const [system] = buildMealPlanMessages(BASE);
+    const content = system.content as string;
+    expect(content).toContain("well under budget");
+    expect(content).toContain("at least 2 meals");
+  });
+
+  test("system prompt teaches whole-pack pantry economics", () => {
+    const [system] = buildMealPlanMessages(BASE);
+    const content = system.content as string;
+    expect(content).toContain("FULL pack price");
+    expect(content).toContain("distinct");
+    expect(content).toContain("reuse opened packs");
+    expect(content).toContain("≤ €120");
+  });
 });
 
 describe("buildRetryMessage", () => {

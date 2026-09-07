@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, useWindowDimensions, type ScrollView } from "react-native";
 import { useFlowStore } from "../state/flow-store";
 import { generateMealPlan } from "../lib/llm/client";
+import type { PantryItem } from "../lib/llm/cost";
 import type { DayPlan, WeeklyPlan } from "../lib/meal-plan";
 import { MEAL_PLAN } from "../lib/theme";
 
@@ -11,6 +12,7 @@ interface CacheEntry {
   key: string;
   plan: WeeklyPlan;
   totalCost: number;
+  shoppingList: PantryItem[];
 }
 
 /** Keeps the generated plan when navigating away and back within a session */
@@ -51,6 +53,9 @@ export function useMealPlan() {
   const [plan, setPlan] = useState<WeeklyPlan | null>(cached?.plan ?? null);
   const [totalCost, setTotalCost] = useState<number | null>(
     cached?.totalCost ?? null,
+  );
+  const [shoppingList, setShoppingList] = useState<PantryItem[]>(
+    cached?.shoppingList ?? [],
   );
   const [streamedDays, setStreamedDays] = useState<(DayPlan | null)[] | null>(
     null,
@@ -105,9 +110,11 @@ export function useMealPlan() {
           key: requestKey,
           plan: result.plan,
           totalCost: result.totalCost,
+          shoppingList: result.shoppingList,
         };
         setPlan(result.plan);
         setTotalCost(result.totalCost);
+        setShoppingList(result.shoppingList);
         setStreamedDays(null);
         setStatus("ready");
       })
@@ -161,6 +168,8 @@ export function useMealPlan() {
     streamedDays,
     /** Estimated weekly cost once ready, otherwise the selected budget */
     displayedCost: totalCost ?? budget,
+    /** Whole-pack shopping list backing the total (empty until ready) */
+    shoppingList,
     selectedDay,
     selectDay,
     retry: () => setStatus("loading"),
