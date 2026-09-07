@@ -63,9 +63,15 @@ export default function MealPlanScreen() {
             Est. cost
           </Text>
           {status === "loading" ? (
-            // The value comes from the LLM plan — show a skeleton (same
-            // pulse as the day cards) until the real cost is confirmed.
-            <CostValueSkeleton />
+            <View style={styles.costRow}>
+              <CostValueSkeleton />
+              <Text
+                className="font-promo"
+                style={[styles.costSuffix, { color: colors.text }]}
+              >
+                / week
+              </Text>
+            </View>
           ) : (
             <View style={styles.costRow}>
               <Text
@@ -158,6 +164,8 @@ export default function MealPlanScreen() {
 /**
  * Pager page wrapper — parallax driven by the shared `scrollX`:
  * the centered card is full opacity/scale, neighbours dim and shrink.
+ * Bottom border-radius interpolates gradually: flat when centred,
+ * rounded (24) when the card scales down as a neighbour.
  */
 function ParallaxPage({
   scrollX,
@@ -183,11 +191,35 @@ function ParallaxPage({
     outputRange: [0.96, 1, 0.96],
     extrapolate: "clamp",
   });
+
+  // Reanimated shared value for border-radius (RN Animated can't interpolate it)
+  const borderRadiusSV = useSharedValue(0);
+
+  useEffect(() => {
+    const id = scrollX.addListener(({ value }) => {
+      const clamped = Math.min(
+        Math.max((value - inputRange[0]) / (inputRange[2] - inputRange[0]), 0),
+        1,
+      );
+      // 0 at centre (inputRange[1]), 1 at edges → 0-24 border radius
+      const distFromCentre = Math.abs(clamped - 0.5) * 2; // 0 → 1
+      borderRadiusSV.value = distFromCentre * 24;
+    });
+    return () => scrollX.removeListener(id);
+  }, [scrollX, inputRange, borderRadiusSV]);
+
+  const animatedBorderRadius = useAnimatedStyle(() => ({
+    borderBottomLeftRadius: borderRadiusSV.value,
+    borderBottomRightRadius: borderRadiusSV.value,
+  }));
+
   return (
     <RNAnimated.View
       style={[styles.page, { opacity, transform: [{ scale }] }]}
     >
-      {children}
+      <Animated.View style={[styles.pageInner, animatedBorderRadius]}>
+        {children}
+      </Animated.View>
     </RNAnimated.View>
   );
 }
@@ -302,9 +334,8 @@ const styles = StyleSheet.create({
   },
   costSkeleton: {
     width: 96,
-    height: 28,
+    height: 33.5,
     borderRadius: 99,
-    marginTop: 4,
   },
   dayRow: {
     marginTop: MEAL_PLAN.dayRowTop - MEAL_PLAN.costCardTop - MEAL_PLAN.costCardHeight, // 12
@@ -318,6 +349,10 @@ const styles = StyleSheet.create({
   page: {
     width: MEAL_PLAN.cardWidth,
     alignSelf: "stretch",
+  },
+  pageInner: {
+    flex: 1,
+    overflow: "hidden",
   },
   errorWrap: {
     flex: 1,

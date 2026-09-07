@@ -68,7 +68,10 @@ export default function RootLayout() {
         <Stack.Screen name="(wizard)" />
         <Stack.Screen
           name="meal-plan"
-          options={{ contentStyle: { backgroundColor: "#34C759" } }}
+          options={{
+            contentStyle: { backgroundColor: "#34C759" },
+            gestureEnabled: false,
+          }}
         />
       </Stack>
     </GestureHandlerRootView>
