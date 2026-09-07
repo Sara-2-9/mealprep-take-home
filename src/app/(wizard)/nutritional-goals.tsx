@@ -1,23 +1,21 @@
 import { View, StyleSheet } from "react-native";
-import { ScreenContainer } from "../components/ui/screen-container";
-import { FlowTitle } from "../components/ui/flow-title";
-import { OptionCard } from "../components/ui/option-card";
-import { CTAButton } from "../components/ui/cta-button";
-import { useDietaryNeeds } from "../hooks/use-dietary-needs";
-import { OPTION_GRID } from "../lib/theme";
+import { ScreenContainer } from "../../components/ui/screen-container";
+import { OptionCard } from "../../components/ui/option-card";
+import { CTAButton } from "../../components/ui/cta-button";
+import { useNutritionalGoals } from "../../hooks/use-nutritional-goals";
+import { OPTION_GRID } from "../../lib/theme";
 
 /**
- * Screen 03 — Dietary needs selection. 2x3 option grid, multi-select
- * with exclusive "None". Back + progress bar are in the fixed layout header.
+ * Screen 04 — Nutritional goals selection. 2x3 option grid, multi-select
+ * with exclusive "None". Back button, progress bar and step title live in
+ * the wizard Stack header (StepHeader).
  */
-export default function DietaryNeedsScreen() {
+export default function NutritionalGoalsScreen() {
   const { options, selected, toggle, canContinue, goNext } =
-    useDietaryNeeds();
+    useNutritionalGoals();
 
   return (
-    <ScreenContainer>
-      <FlowTitle>Any dietary needs?</FlowTitle>
-
+    <ScreenContainer withTopInset={false}>
       <View style={styles.grid}>
         {options.map((option) => (
           <OptionCard

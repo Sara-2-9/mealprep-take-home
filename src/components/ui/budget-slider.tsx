@@ -113,6 +113,6 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: 99,
-    borderWidth: 2,
+    borderWidth: 4,
   },
 });

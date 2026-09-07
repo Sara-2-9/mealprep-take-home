@@ -8,6 +8,12 @@ interface ScreenContainerProps {
   children: ReactNode;
   /** Screen background — defaults to the themed flow background */
   backgroundColor?: string;
+  /**
+   * Pad past the status bar (headerless screens such as the lander).
+   * Wizard screens pass false: their Stack header is not transparent, so
+   * content already starts below it and no top inset is needed.
+   */
+  withTopInset?: boolean;
   style?: ViewStyle;
 }
 
@@ -20,6 +26,7 @@ interface ScreenContainerProps {
 export function ScreenContainer({
   children,
   backgroundColor,
+  withTopInset = true,
   style,
 }: ScreenContainerProps) {
   const insets = useSafeAreaInsets();
@@ -32,7 +39,7 @@ export function ScreenContainer({
         styles.base,
         {
           backgroundColor: backgroundColor ?? colors.screenBackground,
-          paddingTop: insets.top + (HEADER.top - 62),
+          paddingTop: withTopInset ? insets.top + (HEADER.top - 62) : 0,
           paddingBottom: insets.bottom + (CTA.bottom - 34),
           paddingHorizontal,
         },

@@ -1,26 +1,23 @@
 import { View, Text, StyleSheet } from "react-native";
-import { ScreenContainer } from "../components/ui/screen-container";
-import { FlowTitle } from "../components/ui/flow-title";
-import { BudgetSlider } from "../components/ui/budget-slider";
-import { BudgetValue } from "../components/ui/budget-value";
-import { CTAButton } from "../components/ui/cta-button";
-import { useBudgetSelection } from "../hooks/use-budget-selection";
-import { useColors } from "../lib/colors";
+import { ScreenContainer } from "../../components/ui/screen-container";
+import { BudgetSlider } from "../../components/ui/budget-slider";
+import { BudgetValue } from "../../components/ui/budget-value";
+import { CTAButton } from "../../components/ui/cta-button";
+import { useBudgetSelection } from "../../hooks/use-budget-selection";
+import { useColors } from "../../lib/colors";
 
 /**
  * Screen 02 — Budget selection. Weekly budget, EUR 25–150, step 5.
  * The big value renders through BudgetValue (masked green shine sweep,
- * faithful to the Figma "TextAnimationSliding" node). Back + progress bar
- * are in the fixed layout header.
+ * faithful to the Figma "TextAnimationSliding" node). Back button, progress
+ * bar and step title live in the wizard Stack header (StepHeader).
  */
 export default function BudgetScreen() {
   const { budget, setBudget, goNext } = useBudgetSelection();
   const colors = useColors();
 
   return (
-    <ScreenContainer>
-      <FlowTitle>What&apos;s your budget?</FlowTitle>
-
+    <ScreenContainer withTopInset={false}>
       <View style={styles.center}>
         <BudgetValue value={budget} />
         <Text
